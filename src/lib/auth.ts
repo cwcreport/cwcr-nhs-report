@@ -15,12 +15,14 @@ declare module "next-auth" {
       name: string;
       email: string;
       role: UserRole;
+      rootAdmin?: boolean;
       state?: string;
     };
   }
 
   interface User {
     role: UserRole;
+    rootAdmin?: boolean;
     state?: string;
   }
 }
@@ -29,6 +31,7 @@ declare module "next-auth" {
   interface JWT {
     id: string;
     role: UserRole;
+    rootAdmin?: boolean;
     state?: string;
   }
 }
@@ -76,6 +79,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: user.name,
           email: user.email,
           role: user.role,
+          rootAdmin: user.rootAdmin,
           state: userState,
         };
       },
@@ -86,6 +90,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.id = user.id as string;
         token.role = user.role;
+        token.rootAdmin = user.rootAdmin;
         token.state = user.state;
       }
       return token;
@@ -93,6 +98,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session, token }) {
       session.user.id = token.id as string;
       session.user.role = token.role as UserRole;
+      session.user.rootAdmin = token.rootAdmin as boolean | undefined;
       session.user.state = token.state as string;
       return session;
     },
