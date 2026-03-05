@@ -148,6 +148,27 @@ export default function MentorDetailsPage({
                                         </p>
                                     </div>
                                 )}
+                                {(user?.role === "admin" || user?.role === "coordinator") && (
+                                    <div>
+                                        <Button
+                                            onClick={() => {
+                                                if (mentor) {
+                                                    const action = mentor.active ? api.mentors.deactivate(mentor._id) : api.mentors.update(mentor._id, { active: true });
+                                                    action.then(() => fetchMentor()).catch(() => {});
+                                                }
+                                            }}
+                                            variant={mentor?.active ? "destructive" : "default"}
+                                            className="w-full justify-start"
+                                        >
+                                            {mentor?.active ? "Deactivate Mentor" : "Activate Mentor"}
+                                        </Button>
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            {mentor?.active
+                                                ? "Deactivating will prevent this mentor from logging in or submitting reports."
+                                                : "Reactivate this mentor to allow them to log in and submit reports."}
+                                        </p>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>
