@@ -91,7 +91,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id as string;
         token.role = user.role;
@@ -99,6 +99,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.state = user.state;
         token.profileImage = user.profileImage;
       }
+
+      // When session.update() is called, refresh mutable fields from DB
+      if (trigger === "update" && token.id) {
+        try {
+          await connectDB();
+          const freshUser = await User.findById(token.id).select("name profileImage").lean();
+          if (freshUser) {
+            token.name = freshUser.name;
+            token.profileImage = freshUser.profileImage;
+          }
+        } catch {
+          // Silently ignore — keep existing token data
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
