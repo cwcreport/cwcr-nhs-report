@@ -16,6 +16,14 @@ import { useEffect } from "react";
 import Image from "next/image";
 import { UserRole } from "@/lib/constants";
 
+interface RoleDetails {
+  states?: string[];
+  lgas?: string[];
+  coordinatorName?: string;
+  coordinatorEmail?: string;
+  createdAt?: string;
+}
+
 interface UserProfile {
   name: string;
   email: string;
@@ -24,6 +32,8 @@ interface UserProfile {
   state?: string;
   profileImage?: string;
   createdAt: string;
+  rootAdmin?: boolean;
+  roleDetails?: RoleDetails | null;
 }
 
 export default function SettingsPage() {
@@ -225,6 +235,85 @@ export default function SettingsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Role details */}
+        {profile && profile.roleDetails && (
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                {profile.role === UserRole.MENTOR && "Mentor Details"}
+                {profile.role === UserRole.COORDINATOR && "Coordinator Details"}
+                {profile.role === UserRole.ZONAL_DESK_OFFICER && "Desk Officer Details"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                {profile.role === UserRole.MENTOR && profile.roleDetails.coordinatorName && (
+                  <div>
+                    <dt className="text-gray-500">Assigned Coordinator</dt>
+                    <dd className="font-medium">{profile.roleDetails.coordinatorName}</dd>
+                    {profile.roleDetails.coordinatorEmail && (
+                      <dd className="text-xs text-gray-400">{profile.roleDetails.coordinatorEmail}</dd>
+                    )}
+                  </div>
+                )}
+                {profile.roleDetails.states && profile.roleDetails.states.length > 0 && (
+                  <div className={profile.role === UserRole.MENTOR ? "" : "md:col-span-2"}>
+                    <dt className="text-gray-500">Assigned State{profile.roleDetails.states.length > 1 ? "s" : ""}</dt>
+                    <dd className="font-medium flex flex-wrap gap-1 mt-1">
+                      {profile.roleDetails.states.map((s) => (
+                        <Badge key={s} variant="secondary">{s}</Badge>
+                      ))}
+                    </dd>
+                  </div>
+                )}
+                {profile.role === UserRole.MENTOR && profile.roleDetails.lgas && profile.roleDetails.lgas.length > 0 && (
+                  <div className="md:col-span-2">
+                    <dt className="text-gray-500">Assigned LGA{profile.roleDetails.lgas.length > 1 ? "s" : ""}</dt>
+                    <dd className="font-medium flex flex-wrap gap-1 mt-1">
+                      {profile.roleDetails.lgas.map((l) => (
+                        <Badge key={l} variant="secondary">{l}</Badge>
+                      ))}
+                    </dd>
+                  </div>
+                )}
+                {profile.roleDetails.createdAt && (
+                  <div>
+                    <dt className="text-gray-500">Role Assigned On</dt>
+                    <dd className="font-medium">{new Date(profile.roleDetails.createdAt).toLocaleDateString()}</dd>
+                  </div>
+                )}
+              </dl>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Admin details */}
+        {profile && profile.role === UserRole.ADMIN && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Admin Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <dt className="text-gray-500">Admin Level</dt>
+                  <dd className="font-medium">
+                    <Badge variant={profile.rootAdmin ? "default" : "secondary"}>
+                      {profile.rootAdmin ? "Root Admin" : "Admin"}
+                    </Badge>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500">Account Status</dt>
+                  <dd className="font-medium">
+                    <Badge variant="default">Active</Badge>
+                  </dd>
+                </div>
+              </dl>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Update profile */}
         <Card>
