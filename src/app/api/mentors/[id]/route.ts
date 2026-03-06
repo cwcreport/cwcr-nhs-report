@@ -71,6 +71,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   delete body.password;
   delete body.role;
 
+  // Email changes must reset password and notify the new email.
+  if (body.email !== undefined) {
+    await connectDB();
+    const current = await User.findById(id).select("email").lean();
+    if (!current) return jsonError("Mentor not found", 404);
+    const incomingEmail = String(body.email ?? "").trim().toLowerCase();
+    if (incomingEmail && incomingEmail !== String(current.email ?? "").toLowerCase()) {
+      return jsonError("Use /api/mentors/[id]/change-email to change login email", 400);
+    }
+    delete body.email;
+  }
+
   const { states, lgas, ...userUpdates } = body;
 
   const updatedUser = await User.findByIdAndUpdate(id, userUpdates, { new: true })

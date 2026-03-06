@@ -7,13 +7,11 @@ import { useEffect, useState, useCallback } from "react";
 import { Header } from "@/components/layout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
 import { LocationSelector } from "@/components/ui/LocationSelector";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
+import { Card, CardContent } from "@/components/ui/Card";
 import { api, type Coordinator } from "@/lib/api-client";
-import { STATES, UserRole } from "@/lib/constants";
-import { Plus, UserCheck, UserX, ChevronLeft, ChevronRight, KeyRound, Pencil, Trash2 } from "lucide-react";
+import { Plus, UserCheck, UserX, ChevronLeft, ChevronRight, KeyRound, Pencil, Trash2, AtSign } from "lucide-react";
 
 /* ─── Create/Update Coordinator Modal ──── */
 function CoordinatorModal({
@@ -65,7 +63,6 @@ function CoordinatorModal({
                 // Update Mode
                 await api.coordinators.update(coordinator._id, {
                     name: form.name,
-                    email: form.email,
                     phone: form.phone,
                     states: statesArray,
                 });
@@ -112,7 +109,13 @@ function CoordinatorModal({
                             value={form.email}
                             onChange={(e) => setForm({ ...form, email: e.target.value })}
                             required
+                            disabled={Boolean(coordinator)}
                         />
+                        {coordinator && (
+                            <p className="text-xs text-gray-500">
+                                To change a coordinator's login email, use the “Change Email” action. This will reset their password and email a temporary password to the new address.
+                            </p>
+                        )}
                         {!coordinator && (
                             <Input
                                 label="Password *"
@@ -145,6 +148,100 @@ function CoordinatorModal({
                         </Button>
                     </div>
                 </form>
+            </div>
+        </div>
+    );
+}
+
+/* ─── Change Email Modal ─────────────── */
+function ChangeEmailModal({
+    open,
+    onClose,
+    coordinator,
+    onSuccess,
+}: {
+    open: boolean;
+    onClose: () => void;
+    coordinator: Coordinator | null;
+    onSuccess: () => void;
+}) {
+    const [email, setEmail] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState(false);
+
+    useEffect(() => {
+        if (open && coordinator) {
+            setEmail(coordinator.email || "");
+        }
+        if (!open) {
+            setError("");
+            setSuccess(false);
+            setLoading(false);
+        }
+    }, [open, coordinator]);
+
+    if (!open || !coordinator) return null;
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError("");
+        setLoading(true);
+        try {
+            await api.coordinators.changeEmail(coordinator._id, email);
+            setSuccess(true);
+            onSuccess();
+            setTimeout(() => {
+                onClose();
+            }, 1500);
+        } catch (err) {
+            setError((err as Error).message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4">
+                {success ? (
+                    <div className="p-6 text-center space-y-4">
+                        <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
+                            <UserCheck className="w-6 h-6" />
+                        </div>
+                        <h2 className="text-lg font-semibold text-green-700">Email Updated</h2>
+                        <p className="text-sm text-gray-600">
+                            A temporary password was sent to the new email.
+                        </p>
+                    </div>
+                ) : (
+                    <form onSubmit={handleSubmit}>
+                        <div className="p-6 space-y-4">
+                            <h2 className="text-lg font-semibold">Change Login Email</h2>
+                            <p className="text-sm text-gray-600">
+                                This will reset the coordinator's password and send a temporary password to the new email.
+                            </p>
+                            {error && (
+                                <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</p>
+                            )}
+                            <Input
+                                label="New Email *"
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                            />
+                        </div>
+                        <div className="flex justify-end gap-3 px-6 pb-6">
+                            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={loading}>
+                                {loading ? "Updating…" : "Change Email"}
+                            </Button>
+                        </div>
+                    </form>
+                )}
             </div>
         </div>
     );
@@ -242,6 +339,9 @@ export default function CoordinatorsPage() {
     const [showResetModal, setShowResetModal] = useState(false);
     const [resetCoordId, setResetCoordId] = useState("");
 
+    const [showChangeEmailModal, setShowChangeEmailModal] = useState(false);
+    const [changeEmailCoordinator, setChangeEmailCoordinator] = useState<Coordinator | null>(null);
+
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
@@ -291,6 +391,11 @@ export default function CoordinatorsPage() {
     const openReset = (id: string) => {
         setResetCoordId(id);
         setShowResetModal(true);
+    };
+
+    const openChangeEmail = (coord: Coordinator) => {
+        setChangeEmailCoordinator(coord);
+        setShowChangeEmailModal(true);
     };
 
     const handleSelectAll = (checked: boolean) => {
@@ -408,7 +513,7 @@ export default function CoordinatorsPage() {
                                         <td className="px-4 py-3 font-medium">{c.name}</td>
                                         <td className="px-4 py-3 text-gray-600">{c.email}</td>
                                         <td className="px-4 py-3">{c.phone || "—"}</td>
-                                        <td className="px-4 py-3 text-gray-600 break-words max-w-xs">{c.states?.join(", ") || "—"}</td>
+                                        <td className="px-4 py-3 text-gray-600 wrap-break-word max-w-xs">{c.states?.join(", ") || "—"}</td>
                                         <td className="px-4 py-3">
                                             <Badge variant={c.active ? "default" : "warning"}>
                                                 {c.active ? "Active" : "Suspended"}
@@ -430,6 +535,14 @@ export default function CoordinatorsPage() {
                                                 title="Reset Password"
                                             >
                                                 <KeyRound className="h-4 w-4 text-gray-600" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => openChangeEmail(c)}
+                                                title="Change Email"
+                                            >
+                                                <AtSign className="h-4 w-4 text-gray-600" />
                                             </Button>
                                             <Button
                                                 variant="ghost"
@@ -478,6 +591,16 @@ export default function CoordinatorsPage() {
                 open={showResetModal}
                 onClose={() => setShowResetModal(false)}
                 coordinatorId={resetCoordId}
+            />
+
+            <ChangeEmailModal
+                open={showChangeEmailModal}
+                onClose={() => {
+                    setShowChangeEmailModal(false);
+                    setChangeEmailCoordinator(null);
+                }}
+                coordinator={changeEmailCoordinator}
+                onSuccess={fetchCoordinators}
             />
         </>
     );

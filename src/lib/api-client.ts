@@ -76,6 +76,11 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ password: newPassword }),
       }),
+    changeEmail: (id: string, newEmail: string) =>
+      request<{ success: boolean; message: string }>(`/api/mentors/${id}/change-email`, {
+        method: "POST",
+        body: JSON.stringify({ email: newEmail }),
+      }),
     bulkDelete: (data: { ids: string[] }) =>
       request<{ success: boolean; deletedCount: number }>("/api/mentors/bulk", {
         method: "DELETE",
@@ -102,6 +107,11 @@ export const api = {
       request<{ success: boolean; message: string }>(`/api/coordinators/${id}/reset-password`, {
         method: "POST",
         body: JSON.stringify({ password: newPassword }),
+      }),
+    changeEmail: (id: string, newEmail: string) =>
+      request<{ success: boolean; message: string }>(`/api/coordinators/${id}/change-email`, {
+        method: "POST",
+        body: JSON.stringify({ email: newEmail }),
       }),
     bulkDelete: (data: { ids: string[] }) =>
       request<{ success: boolean; deletedCount: number }>("/api/coordinators/bulk", {

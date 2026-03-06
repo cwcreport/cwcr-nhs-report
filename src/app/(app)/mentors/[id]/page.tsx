@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { api, type Mentor } from "@/lib/api-client";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Key } from "lucide-react";
+import { ArrowLeft, Key, AtSign } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Badge } from "@/components/ui/Badge";
 
@@ -30,6 +30,12 @@ export default function MentorDetailsPage({
     const [resetting, setResetting] = useState(false);
     const [resetError, setResetError] = useState("");
     const [resetSuccess, setResetSuccess] = useState("");
+
+    const [changeEmailOpen, setChangeEmailOpen] = useState(false);
+    const [newEmail, setNewEmail] = useState("");
+    const [changingEmail, setChangingEmail] = useState(false);
+    const [changeEmailError, setChangeEmailError] = useState("");
+    const [changeEmailSuccess, setChangeEmailSuccess] = useState("");
 
     const fetchMentor = useCallback(async () => {
         setLoading(true);
@@ -79,6 +85,27 @@ export default function MentorDetailsPage({
             setResetError((err as Error).message);
         } finally {
             setResetting(false);
+        }
+    };
+
+    const handleChangeEmail = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setChangingEmail(true);
+        setChangeEmailError("");
+        setChangeEmailSuccess("");
+        try {
+            await api.mentors.changeEmail(id, newEmail);
+            setChangeEmailSuccess("Email updated. A temporary password was sent to the new email.");
+            await fetchMentor();
+            setTimeout(() => {
+                setChangeEmailOpen(false);
+                setNewEmail("");
+                setChangeEmailSuccess("");
+            }, 2000);
+        } catch (err) {
+            setChangeEmailError((err as Error).message);
+        } finally {
+            setChangingEmail(false);
         }
     };
 
@@ -148,6 +175,23 @@ export default function MentorDetailsPage({
                                         </p>
                                     </div>
                                 )}
+                                {user?.role === "admin" && (
+                                    <div>
+                                        <Button
+                                            onClick={() => {
+                                                setNewEmail(mentor?.email || "");
+                                                setChangeEmailOpen(true);
+                                            }}
+                                            variant="secondary"
+                                            className="w-full justify-start"
+                                        >
+                                            <AtSign className="h-4 w-4 mr-2" /> Change Email
+                                        </Button>
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            Updates the mentor's login email, resets their password to a temporary one, and sends it to the new email.
+                                        </p>
+                                    </div>
+                                )}
                                 {(user?.role === "admin" || user?.role === "coordinator") && (
                                     <div>
                                         <Button
@@ -206,6 +250,51 @@ export default function MentorDetailsPage({
                                 </Button>
                                 <Button type="submit" disabled={resetting || newPassword.length < 6}>
                                     {resetting ? "Resetting…" : "Reset Password"}
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {changeEmailOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4">
+                        <form onSubmit={handleChangeEmail}>
+                            <div className="p-6 space-y-4">
+                                <h2 className="text-lg font-semibold">Change Email</h2>
+                                <p className="text-sm text-gray-600">
+                                    This will reset the mentor's password and send a temporary password to the new email.
+                                </p>
+
+                                {changeEmailError && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{changeEmailError}</p>}
+                                {changeEmailSuccess && <p className="text-sm text-green-700 bg-green-50 p-2 rounded">{changeEmailSuccess}</p>}
+
+                                <Input
+                                    label="New Email"
+                                    type="email"
+                                    value={newEmail}
+                                    onChange={(e) => setNewEmail(e.target.value)}
+                                    required
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3 px-6 pb-6">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setChangeEmailOpen(false);
+                                        setNewEmail("");
+                                        setChangeEmailError("");
+                                        setChangeEmailSuccess("");
+                                    }}
+                                    disabled={changingEmail}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button type="submit" disabled={changingEmail}>
+                                    {changingEmail ? "Updating…" : "Change Email"}
                                 </Button>
                             </div>
                         </form>
