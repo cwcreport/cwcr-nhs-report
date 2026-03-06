@@ -16,16 +16,11 @@ export async function PATCH(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        if (session.user.role !== UserRole.MENTOR) {
+        if (session.user.role !== UserRole.MENTOR && session.user.role !== UserRole.ADMIN) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         await connectDB();
-
-        const mentorDoc = await Mentor.findOne({ authId: session.user.id }).lean();
-        if (!mentorDoc) {
-            return NextResponse.json({ error: "Mentor profile not found" }, { status: 403 });
-        }
 
         const fellow = await Fellow.findById(id);
 
@@ -33,9 +28,16 @@ export async function PATCH(
             return NextResponse.json({ error: "Fellow not found" }, { status: 404 });
         }
 
-        // Only the assigned mentor can update
-        if (fellow.mentor.toString() !== mentorDoc._id.toString()) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        if (session.user.role === UserRole.MENTOR) {
+            const mentorDoc = await Mentor.findOne({ authId: session.user.id }).lean();
+            if (!mentorDoc) {
+                return NextResponse.json({ error: "Mentor profile not found" }, { status: 403 });
+            }
+
+            // Only the assigned mentor can update
+            if (fellow.mentor.toString() !== mentorDoc._id.toString()) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
         }
 
         const body = await request.json();
@@ -63,16 +65,11 @@ export async function DELETE(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        if (session.user.role !== UserRole.MENTOR) {
+        if (session.user.role !== UserRole.MENTOR && session.user.role !== UserRole.ADMIN) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         await connectDB();
-
-        const mentorDoc = await Mentor.findOne({ authId: session.user.id }).lean();
-        if (!mentorDoc) {
-            return NextResponse.json({ error: "Mentor profile not found" }, { status: 403 });
-        }
 
         const fellow = await Fellow.findById(id);
 
@@ -80,8 +77,15 @@ export async function DELETE(
             return NextResponse.json({ error: "Fellow not found" }, { status: 404 });
         }
 
-        if (fellow.mentor.toString() !== mentorDoc._id.toString()) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        if (session.user.role === UserRole.MENTOR) {
+            const mentorDoc = await Mentor.findOne({ authId: session.user.id }).lean();
+            if (!mentorDoc) {
+                return NextResponse.json({ error: "Mentor profile not found" }, { status: 403 });
+            }
+
+            if (fellow.mentor.toString() !== mentorDoc._id.toString()) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
         }
 
         await Fellow.deleteOne({ _id: fellow._id });

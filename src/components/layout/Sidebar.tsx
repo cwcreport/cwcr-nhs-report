@@ -45,10 +45,10 @@ const NAV_ITEMS = [
     roles: [UserRole.COORDINATOR, UserRole.ZONAL_DESK_OFFICER],
   },
   {
-    label: "My Fellows",
+    label: "Fellows",
     href: "/fellows",
     icon: Users,
-    roles: [UserRole.MENTOR],
+    roles: [UserRole.ADMIN, UserRole.MENTOR],
   },
   {
     label: "Mentors Management",

@@ -96,6 +96,7 @@ function AddFellowModal({
 /* ─── Main Page ─────────────────────────── */
 export default function FellowsPage() {
     const { data: session } = useSession();
+    const role = session?.user?.role;
     const [fellows, setFellows] = useState<Fellow[]>([]);
     const [loading, setLoading] = useState(true);
     const [total, setTotal] = useState(0);
@@ -120,8 +121,8 @@ export default function FellowsPage() {
         fetchFellows();
     }, [fetchFellows]);
 
-    // Mentors only
-    if (session?.user && session.user.role !== UserRole.MENTOR) {
+    // Mentors + Admins only
+    if (session?.user && session.user.role !== UserRole.MENTOR && session.user.role !== UserRole.ADMIN) {
         return (
             <div className="p-12 text-center text-gray-500">
                 You do not have permission to view this page. Fellows are managed directly by Mentors.
@@ -174,13 +175,22 @@ export default function FellowsPage() {
 
     return (
         <>
-            <Header title="My Fellows" subtitle={`Managing ${total} assigned fellow${total === 1 ? "" : "s"}`} />
+            <Header
+                title={role === UserRole.ADMIN ? "Fellows" : "My Fellows"}
+                subtitle={
+                    role === UserRole.ADMIN
+                        ? `Managing ${total} fellow${total === 1 ? "" : "s"}`
+                        : `Managing ${total} assigned fellow${total === 1 ? "" : "s"}`
+                }
+            />
 
             <div className="p-6 space-y-4">
                 <Card>
                     <CardContent className="pt-4 flex justify-between items-center">
                         <div className="text-sm text-gray-600 max-w-2xl">
-                            Keep track of your assigned mentees here. You can also securely manage their documents.
+                            {role === UserRole.ADMIN
+                                ? "View and manage fellows here."
+                                : "Keep track of your assigned mentees here. You can also securely manage their documents."}
                         </div>
                         <div className="flex gap-2">
                             <Button
@@ -192,7 +202,7 @@ export default function FellowsPage() {
                                         Gender: f.gender,
                                         LGA: f.lga,
                                     }));
-                                    exportToCSV(data, "my-fellows");
+                                    exportToCSV(data, role === UserRole.ADMIN ? "fellows" : "my-fellows");
                                 }}
                             >
                                 <FileDown className="h-4 w-4 mr-1" /> Export CSV
@@ -203,9 +213,11 @@ export default function FellowsPage() {
                                     {isDeletingBulk ? "Deleting..." : `Delete Selected (${selectedIds.length})`}
                                 </Button>
                             )}
-                            <Button size="sm" onClick={() => setShowAdd(true)}>
-                                <Plus className="h-4 w-4 mr-1" /> Add Fellow
-                            </Button>
+                            {role === UserRole.MENTOR && (
+                                <Button size="sm" onClick={() => setShowAdd(true)}>
+                                    <Plus className="h-4 w-4 mr-1" /> Add Fellow
+                                </Button>
+                            )}
                         </div>
                     </CardContent>
                 </Card>

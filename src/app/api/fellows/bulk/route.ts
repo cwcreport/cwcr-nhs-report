@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
 // DELETE /api/fellows/bulk — Bulk delete fellows
 export async function DELETE(request: NextRequest) {
     try {
-        const { session, error } = await requireRole(UserRole.MENTOR);
+        const { session, error } = await requireRole(UserRole.MENTOR, UserRole.ADMIN);
         if (error) return error;
 
         const body = await parseBody<{ ids: string[] }>(request);
@@ -88,13 +88,17 @@ export async function DELETE(request: NextRequest) {
 
         await connectDB();
 
-        const mentorDoc = await Mentor.findOne({ authId: session!.user.id }).lean();
-        if (!mentorDoc) return jsonError("Mentor profile not found", 403);
-
-        const deleteResult = await Fellow.deleteMany({
+        const deleteFilter: Record<string, unknown> = {
             _id: { $in: body.ids },
-            mentor: mentorDoc._id,
-        });
+        };
+
+        if (session!.user.role === UserRole.MENTOR) {
+            const mentorDoc = await Mentor.findOne({ authId: session!.user.id }).lean();
+            if (!mentorDoc) return jsonError("Mentor profile not found", 403);
+            deleteFilter.mentor = mentorDoc._id;
+        }
+
+        const deleteResult = await Fellow.deleteMany(deleteFilter);
 
         return jsonOk({
             success: true,
