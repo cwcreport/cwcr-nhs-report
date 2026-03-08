@@ -3,7 +3,7 @@
    ────────────────────────────────────────── */
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import { User, Coordinator } from "@/models";
+import { User, Coordinator, Mentor } from "@/models";
 import { UserRole } from "@/lib/constants";
 import { requireRole } from "@/lib/auth-guard";
 import { jsonOk, jsonError, parseBody } from "@/lib/api-helpers";
@@ -85,13 +85,33 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return jsonOk(merged);
 }
 
-// DELETE /api/coordinators/:id — soft-delete (deactivate)
-export async function DELETE(_request: NextRequest, { params }: Params) {
+// DELETE /api/coordinators/:id — soft-delete (deactivate) or permanent delete for admins
+export async function DELETE(request: NextRequest, { params }: Params) {
     const { error } = await requireRole(UserRole.ADMIN);
     if (error) return error;
 
     const { id } = await params;
     await connectDB();
+
+    const url = new URL(request.url);
+    const permanent = url.searchParams.get("permanent") === "true";
+
+    if (permanent) {
+        const coordDoc = await Coordinator.findOne({ authId: id }).lean();
+        if (coordDoc) {
+            const mentorCount = await Mentor.countDocuments({ coordinator: coordDoc._id });
+            if (mentorCount > 0) {
+                return jsonError(
+                    `Cannot permanently delete: this coordinator has ${mentorCount} mentor(s). Reassign or delete them first.`,
+                    409
+                );
+            }
+            await Coordinator.deleteOne({ _id: coordDoc._id });
+        }
+        await User.findByIdAndDelete(id);
+        return jsonOk({ message: "Coordinator permanently deleted" });
+    }
+
     const coordinator = await User.findByIdAndUpdate(id, { active: false }, { new: true })
         .select("-password")
         .lean();

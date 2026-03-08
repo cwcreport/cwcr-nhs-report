@@ -430,6 +430,16 @@ export default function CoordinatorsPage() {
         }
     };
 
+    const handlePermanentDelete = async (c: Coordinator) => {
+        if (!window.confirm(`Permanently delete ${c.name}? This cannot be undone. The coordinator must have no mentors assigned.`)) return;
+        try {
+            await api.coordinators.permanentDelete(c._id);
+            fetchCoordinators();
+        } catch (err) {
+            alert(`Failed to permanently delete: ${(err as Error).message}`);
+        }
+    };
+
     return (
         <>
             <Header title="Zonal Coordinators" subtitle={`${total} total coordinator${total === 1 ? '' : 's'}`} />
@@ -555,6 +565,14 @@ export default function CoordinatorsPage() {
                                                 ) : (
                                                     <UserCheck className="h-4 w-4 text-green-600" />
                                                 )}
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handlePermanentDelete(c)}
+                                                title="Permanently delete"
+                                            >
+                                                <Trash2 className="h-4 w-4 text-red-600" />
                                             </Button>
                                         </td>
                                     </tr>

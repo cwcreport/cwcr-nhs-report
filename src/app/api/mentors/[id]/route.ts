@@ -94,7 +94,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     delete body.email;
   }
 
-  const { states, lgas, ...userUpdates } = body;
+  const { states, lgas, coordinatorId, ...userUpdates } = body;
 
   const updatedUser = await User.findByIdAndUpdate(id, userUpdates, { new: true })
     .select("-password")
@@ -106,6 +106,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const mentorUpdate: Record<string, unknown> = {};
   if (states !== undefined) mentorUpdate.states = Array.isArray(states) ? states.map(s => String(s).toUpperCase().trim()) : states;
   if (lgas !== undefined) mentorUpdate.lgas = Array.isArray(lgas) ? lgas.map(l => String(l).toUpperCase().trim()) : lgas;
+
+  // Reassign coordinator — admin only
+  if (coordinatorId !== undefined && session?.user.role === UserRole.ADMIN) {
+    const targetCoord = await Coordinator.findById(coordinatorId).lean();
+    if (!targetCoord) return jsonError("Target coordinator does not exist", 404);
+    mentorUpdate.coordinator = coordinatorId;
+  }
 
   const mentorDoc = await Mentor.findOneAndUpdate(
     { authId: id },
@@ -122,8 +129,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   return jsonOk(merged);
 }
 
-// DELETE /api/mentors/:id — soft-delete (deactivate)
-export async function DELETE(_request: NextRequest, { params }: Params) {
+// DELETE /api/mentors/:id — soft-delete (deactivate) or permanent delete for admins
+export async function DELETE(request: NextRequest, { params }: Params) {
   const { session, error } = await requireRole(UserRole.ADMIN, UserRole.COORDINATOR);
   if (error) return error;
 
@@ -138,6 +145,22 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     if (!mentorDoc || mentorDoc.coordinator.toString() !== coordinatorDoc._id.toString()) {
       return jsonError("Mentor not found", 404);
     }
+    // Coordinators can only soft-delete
+    const mentor = await User.findByIdAndUpdate(id, { active: false }, { new: true })
+      .select("-password")
+      .lean();
+    if (!mentor) return jsonError("Mentor not found", 404);
+    return jsonOk({ message: "Mentor deactivated", mentor });
+  }
+
+  // Admin: permanent or soft delete
+  const url = new URL(request.url);
+  const permanent = url.searchParams.get("permanent") === "true";
+
+  if (permanent) {
+    await User.findByIdAndDelete(id);
+    await Mentor.deleteOne({ authId: id });
+    return jsonOk({ message: "Mentor permanently deleted" });
   }
 
   const mentor = await User.findByIdAndUpdate(id, { active: false }, { new: true })

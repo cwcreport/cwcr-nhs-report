@@ -66,6 +66,10 @@ export const api = {
       request<Mentor>(`/api/mentors/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     deactivate: (id: string) =>
       request(`/api/mentors/${id}`, { method: "DELETE" }),
+    permanentDelete: (id: string) =>
+      request(`/api/mentors/${id}?permanent=true`, { method: "DELETE" }),
+    reassign: (id: string, coordinatorId: string) =>
+      request<Mentor>(`/api/mentors/${id}`, { method: "PATCH", body: JSON.stringify({ coordinatorId }) }),
     bulkCreate: (data: { mentors: BulkMentorInput[]; coordinatorId?: string }) =>
       request<{ successful: number; failed: number; errors: string[] }>("/api/mentors/bulk", {
         method: "POST",
@@ -103,6 +107,8 @@ export const api = {
       request<Coordinator>(`/api/coordinators/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     deactivate: (id: string) =>
       request(`/api/coordinators/${id}`, { method: "DELETE" }),
+    permanentDelete: (id: string) =>
+      request(`/api/coordinators/${id}?permanent=true`, { method: "DELETE" }),
     resetPassword: (id: string, newPassword: string) =>
       request<{ success: boolean; message: string }>(`/api/coordinators/${id}/reset-password`, {
         method: "POST",

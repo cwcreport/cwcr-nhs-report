@@ -13,13 +13,83 @@ import { LocationSelector } from "@/components/ui/LocationSelector";
 import { Card, CardContent } from "@/components/ui/Card";
 import { api, type Mentor, type Coordinator } from "@/lib/api-client";
 import { STATES, UserRole } from "@/lib/constants";
-import { Plus, UserCheck, UserX, ChevronLeft, ChevronRight, Download, Upload, Trash2, Bell } from "lucide-react";
+import { Plus, UserCheck, UserX, ChevronLeft, ChevronRight, Download, Upload, Trash2, Bell, ArrowRightLeft } from "lucide-react";
 import { DebugSeeder } from "@/components/ui/DebugSeeder";
 import { faker } from "@faker-js/faker";
 import { exportToCSV } from "@/lib/export";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
+
+/* ─── Reassign Mentor Modal ───────────── */
+function ReassignMentorModal({
+  open,
+  onClose,
+  onReassigned,
+  mentor,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onReassigned: () => void;
+  mentor: Mentor | null;
+}) {
+  const [coordinatorId, setCoordinatorId] = useState("");
+  const [coordinators, setCoordinators] = useState<Coordinator[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      api.coordinators.list({ limit: "500" }).then((res) => setCoordinators(res.data)).catch(() => {});
+      setCoordinatorId("");
+      setError("");
+    }
+  }, [open]);
+
+  if (!open || !mentor) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!coordinatorId) { setError("Please select a coordinator."); return; }
+    setLoading(true);
+    try {
+      await api.mentors.reassign(mentor._id, coordinatorId);
+      onReassigned();
+      onClose();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+        <form onSubmit={handleSubmit}>
+          <div className="p-6 space-y-4">
+            <h2 className="text-lg font-semibold">Reassign Mentor</h2>
+            <p className="text-sm text-gray-600">
+              Reassigning <strong>{mentor.name}</strong> to a new coordinator.
+            </p>
+            {error && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</p>}
+            <SearchableSelect
+              label="New Coordinator *"
+              placeholder="Search and select coordinator…"
+              value={coordinatorId}
+              onChange={setCoordinatorId}
+              options={coordinators.map((c) => ({ value: c.coordinatorId ?? c._id, label: `${c.name} (${c.email})` }))}
+            />
+          </div>
+          <div className="flex justify-end gap-3 px-6 pb-6">
+            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>Cancel</Button>
+            <Button type="submit" disabled={loading}>{loading ? "Reassigning…" : "Reassign"}</Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 /* ─── Create Mentor Modal ──────────────── */
 function CreateMentorModal({
@@ -188,6 +258,9 @@ export default function MentorsPage() {
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
   const [isSendingReminders, setIsSendingReminders] = useState(false);
 
+  const [showReassign, setShowReassign] = useState(false);
+  const [reassignMentor, setReassignMentor] = useState<Mentor | null>(null);
+
   const fetchMentors = useCallback(async () => {
     setLoading(true);
     try {
@@ -302,6 +375,16 @@ export default function MentorsPage() {
       alert(`Failed to delete: ${(error as Error).message}`);
     } finally {
       setIsDeletingBulk(false);
+    }
+  };
+
+  const handlePermanentDelete = async (m: Mentor) => {
+    if (!window.confirm(`Permanently delete ${m.name}? This cannot be undone and will remove all their data.`)) return;
+    try {
+      await api.mentors.permanentDelete(m._id);
+      fetchMentors();
+    } catch (err) {
+      alert(`Failed to permanently delete: ${(err as Error).message}`);
     }
   };
 
@@ -470,6 +553,26 @@ export default function MentorsPage() {
                           <UserCheck className="h-4 w-4 text-green-600" />
                         )}
                       </Button>
+                      {session?.user?.role === UserRole.ADMIN && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setReassignMentor(m); setShowReassign(true); }}
+                            title="Reassign to another coordinator"
+                          >
+                            <ArrowRightLeft className="h-4 w-4 text-blue-500" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handlePermanentDelete(m)}
+                            title="Permanently delete"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                          </Button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -499,6 +602,13 @@ export default function MentorsPage() {
         onClose={() => setShowCreate(false)}
         onCreated={fetchMentors}
         userRole={session?.user?.role}
+      />
+
+      <ReassignMentorModal
+        open={showReassign}
+        onClose={() => { setShowReassign(false); setReassignMentor(null); }}
+        onReassigned={fetchMentors}
+        mentor={reassignMentor}
       />
     </>
   );
