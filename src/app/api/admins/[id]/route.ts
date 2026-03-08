@@ -8,6 +8,8 @@ import { UserRole } from "@/lib/constants";
 import { requireRole } from "@/lib/auth-guard";
 import { jsonOk, jsonError } from "@/lib/api-helpers";
 import { auth } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-logger";
+import { logException } from "@/lib/exception-logger";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -56,11 +58,14 @@ export async function PATCH(
 
         await targetAdmin.save();
 
+        void logActivity({ session, action: "UPDATE_ADMIN", targetType: "Admin", targetId: id, targetName: targetAdmin.name });
+
         const updated = targetAdmin.toObject();
         delete (updated as any).password;
 
         return jsonOk(updated);
     } catch (error: any) {
+        void logException({ error, context: "PATCH /api/admins/[id]" });
         return jsonError(error.message, error.status || 500);
     }
 }
@@ -85,8 +90,10 @@ export async function DELETE(
 
         await User.deleteOne({ _id: id });
 
+        void logActivity({ session, action: "DELETE_ADMIN", targetType: "Admin", targetId: id, targetName: targetAdmin.name });
         return jsonOk({ success: true, message: "Admin deleted successfully" });
     } catch (error: any) {
+        void logException({ error, context: "DELETE /api/admins/[id]" });
         return jsonError(error.message, error.status || 500);
     }
 }

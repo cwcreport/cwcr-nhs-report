@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/db";
 import { Fellow } from "@/models/Fellow";
 import { Mentor } from "@/models/Mentor";
 import { UserRole } from "@/lib/constants";
+import { logActivity } from "@/lib/activity-logger";
 
 export async function PATCH(
     request: Request,
@@ -48,6 +49,7 @@ export async function PATCH(
 
         await fellow.save();
 
+        void logActivity({ session, action: "UPDATE_FELLOW", targetType: "Fellow", targetId: id, targetName: fellow.name });
         return NextResponse.json(fellow);
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 400 });

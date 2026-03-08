@@ -11,6 +11,8 @@ import { jsonOk, jsonError, jsonCreated, parseBody, parsePagination } from "@/li
 import { sendMail } from "@/lib/mailer";
 import { newDeskOfficerEmailTemplate } from "@/lib/email-templates";
 import { env } from "@/lib/env";
+import { logActivity } from "@/lib/activity-logger";
+import { logException } from "@/lib/exception-logger";
 
 // GET /api/desk-officers — list desk officers (admin only)
 export async function GET(request: NextRequest) {
@@ -75,7 +77,7 @@ interface CreateDeskOfficerBody {
 }
 
 export async function POST(request: NextRequest) {
-    const { error } = await requireRole(UserRole.ADMIN);
+    const { session, error } = await requireRole(UserRole.ADMIN);
     if (error) return error;
 
     const body = await parseBody<CreateDeskOfficerBody>(request);
@@ -125,5 +127,6 @@ export async function POST(request: NextRequest) {
         console.error("Failed to send desk officer invitation email:", emailErr);
     }
 
+    void logActivity({ session, action: "CREATE_DESK_OFFICER", targetType: "DeskOfficer", targetId: String(user._id), targetName: user.name });
     return jsonCreated(userData);
 }

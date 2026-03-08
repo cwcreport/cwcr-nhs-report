@@ -8,6 +8,7 @@ import { User, Mentor, Coordinator, DeskOfficer } from "@/models";
 import { UserRole } from "@/lib/constants";
 import { requireRole } from "@/lib/auth-guard";
 import { jsonOk, jsonError, jsonCreated, parseBody, parsePagination } from "@/lib/api-helpers";
+import { logActivity } from "@/lib/activity-logger";
 
 // GET /api/mentors — list mentors (admin/coordinator)
 export async function GET(request: NextRequest) {
@@ -181,5 +182,14 @@ export async function POST(request: NextRequest) {
   const userObj = user.toObject() as unknown as Record<string, unknown>;
   const { password, ...safeUser } = userObj;
   void password;
+
+  void logActivity({
+    session,
+    action: "CREATE_MENTOR",
+    targetType: "Mentor",
+    targetId: String(user._id),
+    targetName: user.name,
+  });
+
   return jsonCreated({ ...safeUser, states: mentorDoc.states, lgas: mentorDoc.lgas, coordinator: mentorDoc.coordinator });
 }

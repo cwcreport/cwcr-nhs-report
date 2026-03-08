@@ -10,6 +10,7 @@ import { FellowDocument } from "@/models/FellowDocument";
 import { UserRole } from "@/lib/constants";
 import { requireRole } from "@/lib/auth-guard";
 import { jsonOk, jsonError, parseBody } from "@/lib/api-helpers";
+import { logActivity } from "@/lib/activity-logger";
 
 interface RouteParams {
     params: Promise<{ id: string }>;
@@ -20,7 +21,7 @@ interface UpdateDocumentTypeBody {
 }
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
-    const { error } = await requireRole(UserRole.ADMIN);
+    const { session, error } = await requireRole(UserRole.ADMIN);
     if (error) return error;
 
     const resolvedParams = await params;
@@ -47,11 +48,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     if (!documentType) return jsonError("Document type not found", 404);
 
+    void logActivity({ session, action: "UPDATE_DOCUMENT_TYPE", targetType: "DocumentType", targetId: id, targetName: documentType.title });
     return jsonOk(documentType);
 }
 
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
-    const { error } = await requireRole(UserRole.ADMIN);
+    const { session, error } = await requireRole(UserRole.ADMIN);
     if (error) return error;
 
     const resolvedParams = await params;
@@ -68,5 +70,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const documentType = await DocumentType.findByIdAndDelete(id).lean();
     if (!documentType) return jsonError("Document type not found", 404);
 
+    void logActivity({ session, action: "DELETE_DOCUMENT_TYPE", targetType: "DocumentType", targetId: id, targetName: documentType.title });
     return jsonOk({ success: true, message: "Document type deleted successfully" });
 }

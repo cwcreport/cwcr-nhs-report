@@ -7,6 +7,7 @@ import { Alert } from "@/models";
 import { UserRole, AlertStatus } from "@/lib/constants";
 import { requireRole } from "@/lib/auth-guard";
 import { jsonOk, jsonError, parseBody } from "@/lib/api-helpers";
+import { logActivity } from "@/lib/activity-logger";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -35,5 +36,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     .lean();
 
   if (!alert) return jsonError("Alert not found", 404);
+  void logActivity({ session, action: "UPDATE_ALERT", targetType: "Alert", targetId: id });
   return jsonOk(alert);
 }

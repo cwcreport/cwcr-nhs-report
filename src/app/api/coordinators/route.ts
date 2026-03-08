@@ -8,6 +8,7 @@ import { User, Coordinator } from "@/models";
 import { UserRole } from "@/lib/constants";
 import { requireRole } from "@/lib/auth-guard";
 import { jsonOk, jsonError, jsonCreated, parseBody, parsePagination } from "@/lib/api-helpers";
+import { logActivity } from "@/lib/activity-logger";
 import { sendMail } from "@/lib/mailer";
 import { newCoordinatorEmailTemplate } from "@/lib/email-templates";
 import { env } from "@/lib/env";
@@ -75,7 +76,7 @@ interface CreateCoordinatorBody {
 }
 
 export async function POST(request: NextRequest) {
-    const { error } = await requireRole(UserRole.ADMIN);
+    const { session, error } = await requireRole(UserRole.ADMIN);
     if (error) return error;
 
     const body = await parseBody<CreateCoordinatorBody>(request);
@@ -125,6 +126,14 @@ export async function POST(request: NextRequest) {
         console.error("Failed to send coordinator invitation email:", emailErr);
         // We still return success since the user was created, but maybe add a warning note.
     }
+
+    void logActivity({
+      session,
+      action: "CREATE_COORDINATOR",
+      targetType: "Coordinator",
+      targetId: String(user._id),
+      targetName: user.name,
+    });
 
     return jsonCreated(userData);
 }

@@ -9,6 +9,7 @@ import { requireAuth, requireRole } from "@/lib/auth-guard";
 import { jsonOk, jsonError, jsonCreated, parseBody, parsePagination } from "@/lib/api-helpers";
 import { isoWeekKey } from "@/lib/date-helpers";
 import { rebuildRollupForWeek } from "@/services/rollup.service";
+import { logActivity } from "@/lib/activity-logger";
 
 // GET /api/reports — list reports
 export async function GET(request: NextRequest) {
@@ -239,5 +240,6 @@ export async function POST(request: NextRequest) {
   // Rebuild rollup for this week
   await rebuildRollupForWeek(weekKey);
 
+  void logActivity({ session, action: "SUBMIT_REPORT", targetType: "Report", targetId: String(report._id), targetName: weekKey });
   return jsonCreated(report);
 }

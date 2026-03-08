@@ -14,6 +14,7 @@ import {
   BarChart3,
   Settings,
   LogOut,
+  ClipboardList,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { APP_NAME, UserRole } from "@/lib/constants";
@@ -97,6 +98,12 @@ const NAV_ITEMS = [
     href: "/analytics",
     icon: BarChart3,
     roles: [UserRole.ADMIN, UserRole.COORDINATOR],
+  },
+  {
+    label: "Activity Logs",
+    href: "/admin/logs",
+    icon: ClipboardList,
+    roles: [UserRole.ADMIN],
   },
   {
     label: "Settings",

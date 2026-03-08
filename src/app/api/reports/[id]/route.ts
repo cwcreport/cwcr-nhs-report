@@ -9,6 +9,7 @@ import { requireAuth } from "@/lib/auth-guard";
 import { jsonOk, jsonError, parseBody } from "@/lib/api-helpers";
 import { rebuildRollupForWeek } from "@/services/rollup.service";
 import { currentWeekKey } from "@/lib/date-helpers";
+import { logActivity } from "@/lib/activity-logger";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -108,5 +109,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   // Rebuild rollup
   await rebuildRollupForWeek(report.weekKey);
 
+  void logActivity({ session, action: "UPDATE_REPORT", targetType: "Report", targetId: id, targetName: report.weekKey });
   return jsonOk(report);
 }

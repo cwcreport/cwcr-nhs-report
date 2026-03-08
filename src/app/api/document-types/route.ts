@@ -9,6 +9,7 @@ import { DocumentType } from "@/models/DocumentType";
 import { UserRole } from "@/lib/constants";
 import { requireRole } from "@/lib/auth-guard";
 import { jsonOk, jsonError, jsonCreated, parseBody, parsePagination } from "@/lib/api-helpers";
+import { logActivity } from "@/lib/activity-logger";
 
 export async function GET(request: NextRequest) {
     // Allow ADMIN, COORDINATOR, and MENTOR to get document types
@@ -37,7 +38,7 @@ interface CreateDocumentTypeBody {
 
 export async function POST(request: NextRequest) {
     // Only Admin can create document types
-    const { error } = await requireRole(UserRole.ADMIN);
+    const { session, error } = await requireRole(UserRole.ADMIN);
     if (error) return error;
 
     const body = await parseBody<CreateDocumentTypeBody>(request);
@@ -54,5 +55,6 @@ export async function POST(request: NextRequest) {
         title: body.title.trim(),
     });
 
+    void logActivity({ session, action: "CREATE_DOCUMENT_TYPE", targetType: "DocumentType", targetId: String(documentType._id), targetName: documentType.title });
     return jsonCreated(documentType);
 }

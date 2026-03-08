@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/db";
 import { Fellow } from "@/models/Fellow";
 import { Mentor } from "@/models/Mentor";
 import { UserRole } from "@/lib/constants";
+import { logActivity } from "@/lib/activity-logger";
 
 export async function GET(request: Request) {
     try {
@@ -74,6 +75,7 @@ export async function POST(request: Request) {
             mentor: mentorDoc._id,
         });
 
+        void logActivity({ session, action: "CREATE_FELLOW", targetType: "Fellow", targetId: String(fellow._id), targetName: fellow.name });
         return NextResponse.json(fellow, { status: 201 });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 400 });

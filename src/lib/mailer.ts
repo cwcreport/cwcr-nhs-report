@@ -3,6 +3,7 @@
    ────────────────────────────────────────── */
 import nodemailer, { Transporter } from "nodemailer";
 import { env } from "@/lib/env";
+import { trackIntegration } from "@/lib/integration-logger";
 
 let transporter: Transporter | null = null;
 
@@ -29,11 +30,20 @@ interface SendMailOptions {
 export async function sendMail({ to, subject, text, html }: SendMailOptions) {
   const t = getTransporter();
   const recipients = Array.isArray(to) ? to.join(", ") : to;
-  return t.sendMail({
-    from: env.SMTP_FROM(),
-    to: recipients,
-    subject,
-    text,
-    html,
-  });
+  return trackIntegration(
+    {
+      service: "email",
+      action: "SEND_EMAIL",
+      // Omit html/text body from payload to keep logs concise
+      payload: { to: recipients, subject },
+    },
+    () =>
+      t.sendMail({
+        from: env.SMTP_FROM(),
+        to: recipients,
+        subject,
+        text,
+        html,
+      })
+  );
 }

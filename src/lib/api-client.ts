@@ -228,6 +228,27 @@ export const api = {
     delete: (id: string) =>
       request(`/api/document-types/${id}`, { method: "DELETE" }),
   },
+
+  logs: {
+    list: (params?: Record<string, string>) =>
+      request<PaginatedResponse<ActivityLog>>(`/api/admin/logs?${new URLSearchParams(params).toString()}`),
+    clear: () =>
+      request<{ message: string }>("/api/admin/logs?confirm=yes", { method: "DELETE" }),
+  },
+
+  exceptionLogs: {
+    list: (params?: Record<string, string>) =>
+      request<PaginatedResponse<ExceptionLog>>(`/api/admin/exception-logs?${new URLSearchParams(params).toString()}`),
+    clear: () =>
+      request<{ message: string }>("/api/admin/exception-logs?confirm=yes", { method: "DELETE" }),
+  },
+
+  integrationLogs: {
+    list: (params?: Record<string, string>) =>
+      request<PaginatedResponse<IntegrationLog>>(`/api/admin/integration-logs?${new URLSearchParams(params).toString()}`),
+    clear: () =>
+      request<{ message: string }>("/api/admin/integration-logs?confirm=yes", { method: "DELETE" }),
+  },
 };
 
 // ─── Types ──────────────────────────────────
@@ -497,4 +518,47 @@ export interface CreateDocumentTypeInput {
 
 export interface UpdateDocumentTypeInput {
   title: string;
+}
+
+export interface ActivityLog {
+  _id: string;
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  action: string;
+  targetType?: string;
+  targetId?: string;
+  targetName?: string;
+  meta?: Record<string, unknown>;
+  ip?: string;
+  createdAt: string;
+}
+
+export interface ExceptionLog {
+  _id: string;
+  message: string;
+  stack?: string;
+  context: string;
+  actorId?: string;
+  actorName?: string;
+  actorRole?: string;
+  request?: { method?: string; url?: string; body?: unknown };
+  meta?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface IntegrationLog {
+  _id: string;
+  service: string;
+  action: string;
+  status: "success" | "failure";
+  durationMs?: number;
+  payload?: unknown;
+  response?: unknown;
+  error?: string;
+  actorId?: string;
+  actorName?: string;
+  actorRole?: string;
+  meta?: Record<string, unknown>;
+  createdAt: string;
 }

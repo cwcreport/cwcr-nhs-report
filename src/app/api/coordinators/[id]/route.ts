@@ -7,6 +7,7 @@ import { User, Coordinator, Mentor } from "@/models";
 import { UserRole } from "@/lib/constants";
 import { requireRole } from "@/lib/auth-guard";
 import { jsonOk, jsonError, parseBody } from "@/lib/api-helpers";
+import { logActivity } from "@/lib/activity-logger";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -87,7 +88,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 // DELETE /api/coordinators/:id — soft-delete (deactivate) or permanent delete for admins
 export async function DELETE(request: NextRequest, { params }: Params) {
-    const { error } = await requireRole(UserRole.ADMIN);
+    const { session, error } = await requireRole(UserRole.ADMIN);
     if (error) return error;
 
     const { id } = await params;
@@ -108,7 +109,14 @@ export async function DELETE(request: NextRequest, { params }: Params) {
             }
             await Coordinator.deleteOne({ _id: coordDoc._id });
         }
-        await User.findByIdAndDelete(id);
+        const deletedUser = await User.findByIdAndDelete(id).select("name").lean();
+        void logActivity({
+          session,
+          action: "PERMANENT_DELETE_COORDINATOR",
+          targetType: "Coordinator",
+          targetId: id,
+          targetName: deletedUser?.name,
+        });
         return jsonOk({ message: "Coordinator permanently deleted" });
     }
 
@@ -117,6 +125,14 @@ export async function DELETE(request: NextRequest, { params }: Params) {
         .lean();
 
     if (!coordinator) return jsonError("Coordinator not found", 404);
+
+    void logActivity({
+      session,
+      action: "DEACTIVATE_COORDINATOR",
+      targetType: "Coordinator",
+      targetId: id,
+      targetName: coordinator.name,
+    });
 
     return jsonOk({ message: "Coordinator deactivated", coordinator });
 }

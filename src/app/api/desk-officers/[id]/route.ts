@@ -7,6 +7,8 @@ import { User, DeskOfficer } from "@/models";
 import { UserRole } from "@/lib/constants";
 import { requireRole } from "@/lib/auth-guard";
 import { jsonOk, jsonError, parseBody } from "@/lib/api-helpers";
+import { logActivity } from "@/lib/activity-logger";
+import { logException } from "@/lib/exception-logger";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -32,7 +34,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 // PATCH /api/desk-officers/:id
 export async function PATCH(request: NextRequest, { params }: Params) {
-    const { error } = await requireRole(UserRole.ADMIN);
+    const { session, error } = await requireRole(UserRole.ADMIN);
     if (error) return error;
 
     const { id } = await params;
@@ -70,12 +72,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         states: deskOfficerDoc?.states || []
     };
 
+    void logActivity({ session, action: "UPDATE_DESK_OFFICER", targetType: "DeskOfficer", targetId: id, targetName: updatedUser.name });
     return jsonOk(merged);
 }
 
 // DELETE /api/desk-officers/:id — soft-delete (deactivate)
 export async function DELETE(_request: NextRequest, { params }: Params) {
-    const { error } = await requireRole(UserRole.ADMIN);
+    const { session, error } = await requireRole(UserRole.ADMIN);
     if (error) return error;
 
     const { id } = await params;
@@ -86,5 +89,6 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
     if (!deskOfficer) return jsonError("Desk Officer not found", 404);
 
+    void logActivity({ session, action: "DEACTIVATE_DESK_OFFICER", targetType: "DeskOfficer", targetId: id, targetName: deskOfficer.name });
     return jsonOk({ message: "Desk Officer deactivated", deskOfficer });
 }

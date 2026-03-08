@@ -7,6 +7,7 @@ import { User, Mentor, Coordinator, DeskOfficer } from "@/models";
 import { UserRole } from "@/lib/constants";
 import { requireAuth, requireRole } from "@/lib/auth-guard";
 import { jsonOk, jsonError, parseBody } from "@/lib/api-helpers";
+import { logActivity } from "@/lib/activity-logger";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -108,7 +109,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (lgas !== undefined) mentorUpdate.lgas = Array.isArray(lgas) ? lgas.map(l => String(l).toUpperCase().trim()) : lgas;
 
   // Reassign coordinator — admin only
-  if (coordinatorId !== undefined && session?.user.role === UserRole.ADMIN) {
+  const isReassign = coordinatorId !== undefined && session?.user.role === UserRole.ADMIN;
+  if (isReassign) {
     const targetCoord = await Coordinator.findById(coordinatorId).lean();
     if (!targetCoord) return jsonError("Target coordinator does not exist", 404);
     mentorUpdate.coordinator = coordinatorId;
@@ -119,6 +121,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     { $set: mentorUpdate },
     { new: true, upsert: true }
   ).lean();
+
+  if (isReassign) {
+    void logActivity({
+      session,
+      action: "REASSIGN_MENTOR",
+      targetType: "Mentor",
+      targetId: id,
+      targetName: updatedUser.name,
+      meta: { newCoordinatorId: coordinatorId },
+    });
+  }
 
   const merged = {
     ...updatedUser,
@@ -150,6 +163,13 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       .select("-password")
       .lean();
     if (!mentor) return jsonError("Mentor not found", 404);
+    void logActivity({
+      session,
+      action: "DEACTIVATE_MENTOR",
+      targetType: "Mentor",
+      targetId: id,
+      targetName: mentor.name,
+    });
     return jsonOk({ message: "Mentor deactivated", mentor });
   }
 
@@ -158,8 +178,16 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   const permanent = url.searchParams.get("permanent") === "true";
 
   if (permanent) {
+    const targetUser = await User.findById(id).select("name").lean();
     await User.findByIdAndDelete(id);
     await Mentor.deleteOne({ authId: id });
+    void logActivity({
+      session,
+      action: "PERMANENT_DELETE_MENTOR",
+      targetType: "Mentor",
+      targetId: id,
+      targetName: targetUser?.name,
+    });
     return jsonOk({ message: "Mentor permanently deleted" });
   }
 
@@ -167,5 +195,12 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     .select("-password")
     .lean();
   if (!mentor) return jsonError("Mentor not found", 404);
+  void logActivity({
+    session,
+    action: "DEACTIVATE_MENTOR",
+    targetType: "Mentor",
+    targetId: id,
+    targetName: mentor.name,
+  });
   return jsonOk({ message: "Mentor deactivated", mentor });
 }

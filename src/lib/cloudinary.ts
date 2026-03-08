@@ -3,6 +3,7 @@
    ────────────────────────────────────────── */
 import { v2 as cloudinary } from "cloudinary";
 import { env } from "@/lib/env";
+import { trackIntegration } from "@/lib/integration-logger";
 
 let configured = false;
 
@@ -31,14 +32,23 @@ export async function uploadToCloudinary(
   const baseFolder = env.CLOUDINARY_UPLOAD_FOLDER();
   const subFolder = options?.folder ? `${baseFolder}/${options.folder}` : baseFolder;
 
-  const result = await cld.uploader.upload(file, {
-    folder: subFolder,
-    public_id: options?.publicId,
-    resource_type: "auto",
-    overwrite: false,
-  });
-  return {
-    url: result.secure_url,
-    publicId: result.public_id,
-  };
+  return trackIntegration(
+    {
+      service: "cloudinary",
+      action: "UPLOAD_IMAGE",
+      payload: { folder: subFolder, publicId: options?.publicId },
+    },
+    async () => {
+      const result = await cld.uploader.upload(file, {
+        folder: subFolder,
+        public_id: options?.publicId,
+        resource_type: "auto",
+        overwrite: false,
+      });
+      return {
+        url: result.secure_url,
+        publicId: result.public_id,
+      };
+    }
+  );
 }

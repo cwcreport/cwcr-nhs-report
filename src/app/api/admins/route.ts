@@ -6,8 +6,11 @@ import { connectDB } from "@/lib/db";
 import { User } from "@/models";
 import { UserRole } from "@/lib/constants";
 import { requireRole } from "@/lib/auth-guard";
+import { auth } from "@/lib/auth";
 import { jsonOk, jsonError } from "@/lib/api-helpers";
 import bcrypt from "bcryptjs";
+import { logActivity } from "@/lib/activity-logger";
+import { logException } from "@/lib/exception-logger";
 
 export async function GET(request: NextRequest) {
     try {
@@ -56,6 +59,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         await requireRole(UserRole.ADMIN);
+        const session = await auth();
         await connectDB();
 
         const body = await request.json();
@@ -86,8 +90,10 @@ export async function POST(request: NextRequest) {
         const safeUser = newUser.toObject();
         delete (safeUser as any).password;
 
+        void logActivity({ session, action: "CREATE_ADMIN", targetType: "Admin", targetId: String(newUser._id), targetName: newUser.name });
         return jsonOk(safeUser, 201);
     } catch (error: any) {
+        void logException({ error, context: "POST /api/admins" });
         return jsonError(error.message, error.status || 500);
     }
 }
