@@ -272,6 +272,7 @@ export interface CreateMentorInput {
   phone?: string;
   states?: string[];
   lgas?: string[];
+  coordinatorId?: string;
 }
 
 export interface BulkMentorInput {

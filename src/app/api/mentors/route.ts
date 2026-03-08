@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
   });
 }
 
-// POST /api/mentors — create a mentor (admin only)
+// POST /api/mentors — create a mentor (admin or coordinator)
 interface CreateMentorBody {
   name: string;
   email: string;
@@ -128,10 +128,11 @@ interface CreateMentorBody {
   phone?: string;
   states?: string[];
   lgas?: string[];
+  coordinatorId?: string;
 }
 
 export async function POST(request: NextRequest) {
-  const { error } = await requireRole(UserRole.ADMIN);
+  const { session, error } = await requireRole(UserRole.ADMIN, UserRole.COORDINATOR);
   if (error) return error;
 
   const body = await parseBody<CreateMentorBody>(request);
@@ -140,6 +141,21 @@ export async function POST(request: NextRequest) {
   }
 
   await connectDB();
+
+  let resolvedCoordinatorId: string | undefined;
+
+  if (session?.user.role === UserRole.COORDINATOR) {
+    const coordinatorDoc = await Coordinator.findOne({ authId: session.user.id });
+    if (!coordinatorDoc) return jsonError("Coordinator profile not found for this user.", 404);
+    resolvedCoordinatorId = coordinatorDoc._id.toString();
+  } else if (session?.user.role === UserRole.ADMIN) {
+    if (!body.coordinatorId) return jsonError("Admins must provide a coordinatorId to assign this mentor to.");
+    const coordinatorExists = await Coordinator.findById(body.coordinatorId);
+    if (!coordinatorExists) return jsonError("The selected coordinator does not exist.", 404);
+    resolvedCoordinatorId = body.coordinatorId;
+  }
+
+  if (!resolvedCoordinatorId) return jsonError("Could not resolve a coordinator for this mentor.", 400);
 
   const existing = await User.findOne({ email: body.email.toLowerCase().trim() });
   if (existing) return jsonError("A user with this email already exists", 409);
@@ -155,16 +171,15 @@ export async function POST(request: NextRequest) {
     active: true,
   });
 
-  // Automatically try to assign to admin or placeholder, usually admins don't create mentors manually (coordinators do), 
-  // but if they do, we create a mentor document mapped to a dummy or null coordinator.
   const mentorDoc = await Mentor.create({
     authId: user._id,
+    coordinator: resolvedCoordinatorId,
     states: body.states ? body.states.map((s: string) => s.toUpperCase().trim()) : [],
-    lgas: body.lgas ? body.lgas.map((lga: string) => lga.toUpperCase().trim()) : []
+    lgas: body.lgas ? body.lgas.map((lga: string) => lga.toUpperCase().trim()) : [],
   });
 
   const userObj = user.toObject() as unknown as Record<string, unknown>;
   const { password, ...safeUser } = userObj;
   void password;
-  return jsonCreated({ ...safeUser, states: mentorDoc.states, lgas: mentorDoc.lgas });
+  return jsonCreated({ ...safeUser, states: mentorDoc.states, lgas: mentorDoc.lgas, coordinator: mentorDoc.coordinator });
 }

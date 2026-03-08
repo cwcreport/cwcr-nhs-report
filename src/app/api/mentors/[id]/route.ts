@@ -60,12 +60,24 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 // PATCH /api/mentors/:id
 export async function PATCH(request: NextRequest, { params }: Params) {
-  const { error } = await requireRole(UserRole.ADMIN);
+  const { session, error } = await requireRole(UserRole.ADMIN, UserRole.COORDINATOR);
   if (error) return error;
 
   const { id } = await params;
   const body = await parseBody<Record<string, unknown>>(request);
   if (!body) return jsonError("Invalid body");
+
+  await connectDB();
+
+  // Coordinators may only update their own mentors
+  if (session?.user.role === UserRole.COORDINATOR) {
+    const coordinatorDoc = await Coordinator.findOne({ authId: session.user.id }).lean();
+    if (!coordinatorDoc) return jsonError("Coordinator record not found", 404);
+    const mentorDoc = await Mentor.findOne({ authId: id }).lean();
+    if (!mentorDoc || mentorDoc.coordinator.toString() !== coordinatorDoc._id.toString()) {
+      return jsonError("Mentor not found", 404);
+    }
+  }
 
   // Prevent password/role update via this endpoint
   delete body.password;
@@ -73,7 +85,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   // Email changes must reset password and notify the new email.
   if (body.email !== undefined) {
-    await connectDB();
     const current = await User.findById(id).select("email").lean();
     if (!current) return jsonError("Mentor not found", 404);
     const incomingEmail = String(body.email ?? "").trim().toLowerCase();
@@ -113,11 +124,22 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 // DELETE /api/mentors/:id — soft-delete (deactivate)
 export async function DELETE(_request: NextRequest, { params }: Params) {
-  const { error } = await requireRole(UserRole.ADMIN);
+  const { session, error } = await requireRole(UserRole.ADMIN, UserRole.COORDINATOR);
   if (error) return error;
 
   const { id } = await params;
   await connectDB();
+
+  // Coordinators may only deactivate their own mentors
+  if (session?.user.role === UserRole.COORDINATOR) {
+    const coordinatorDoc = await Coordinator.findOne({ authId: session.user.id }).lean();
+    if (!coordinatorDoc) return jsonError("Coordinator record not found", 404);
+    const mentorDoc = await Mentor.findOne({ authId: id }).lean();
+    if (!mentorDoc || mentorDoc.coordinator.toString() !== coordinatorDoc._id.toString()) {
+      return jsonError("Mentor not found", 404);
+    }
+  }
+
   const mentor = await User.findByIdAndUpdate(id, { active: false }, { new: true })
     .select("-password")
     .lean();

@@ -11,7 +11,7 @@ import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
 import { LocationSelector } from "@/components/ui/LocationSelector";
 import { Card, CardContent } from "@/components/ui/Card";
-import { api, type Mentor } from "@/lib/api-client";
+import { api, type Mentor, type Coordinator } from "@/lib/api-client";
 import { STATES, UserRole } from "@/lib/constants";
 import { Plus, UserCheck, UserX, ChevronLeft, ChevronRight, Download, Upload, Trash2, Bell } from "lucide-react";
 import { DebugSeeder } from "@/components/ui/DebugSeeder";
@@ -19,18 +19,22 @@ import { faker } from "@faker-js/faker";
 import { exportToCSV } from "@/lib/export";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 
 /* ─── Create Mentor Modal ──────────────── */
 function CreateMentorModal({
   open,
   onClose,
   onCreated,
+  userRole,
 }: {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
+  userRole?: string;
 }) {
-  const [form, setForm] = useState<{ name: string, email: string, password: string, phone: string, states: string[], lgas: string[], role: string }>({
+  const isAdmin = userRole === UserRole.ADMIN;
+  const [form, setForm] = useState<{ name: string, email: string, password: string, phone: string, states: string[], lgas: string[], role: string, coordinatorId: string }>({
     name: "",
     email: "",
     password: "",
@@ -38,24 +42,41 @@ function CreateMentorModal({
     states: [],
     lgas: [],
     role: UserRole.MENTOR as string,
+    coordinatorId: "",
   });
+  const [coordinators, setCoordinators] = useState<Coordinator[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open && isAdmin) {
+      api.coordinators.list({ limit: "500" }).then((res) => setCoordinators(res.data)).catch(() => {});
+    }
+  }, [open, isAdmin]);
 
   if (!open) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (isAdmin && !form.coordinatorId) {
+      setError("Please select a coordinator to assign this mentor to.");
+      return;
+    }
     setLoading(true);
     try {
       await api.mentors.create({
-        ...form,
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        phone: form.phone,
+        states: form.states,
         lgas: form.lgas,
+        coordinatorId: isAdmin ? form.coordinatorId : undefined,
       });
       onCreated();
       onClose();
-      setForm({ name: "", email: "", password: "", phone: "", states: [], lgas: [], role: UserRole.MENTOR });
+      setForm({ name: "", email: "", password: "", phone: "", states: [], lgas: [], role: UserRole.MENTOR, coordinatorId: "" });
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -99,6 +120,15 @@ function CreateMentorModal({
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
             />
+            {isAdmin && (
+              <SearchableSelect
+                label="Coordinator *"
+                placeholder="Search and select coordinator…"
+                value={form.coordinatorId}
+                onChange={(value) => setForm({ ...form, coordinatorId: value })}
+                options={coordinators.map((c) => ({ value: c._id, label: `${c.name} (${c.email})` }))}
+              />
+            )}
             <LocationSelector
               selectedStates={form.states}
               onChangeStates={(states) => setForm({ ...form, states, lgas: [] })}
@@ -132,6 +162,7 @@ function CreateMentorModal({
             states: [faker.helpers.arrayElement(STATES)],
             lgas: [faker.location.county(), faker.location.county()],
             role: UserRole.MENTOR,
+            coordinatorId: form.coordinatorId,
           });
         }}
       />
@@ -467,6 +498,7 @@ export default function MentorsPage() {
         open={showCreate}
         onClose={() => setShowCreate(false)}
         onCreated={fetchMentors}
+        userRole={session?.user?.role}
       />
     </>
   );
