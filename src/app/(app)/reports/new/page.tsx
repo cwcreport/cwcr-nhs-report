@@ -43,26 +43,36 @@ export default function NewReportPage() {
   const [assignedFellows, setAssignedFellows] = useState<{ id: string; name: string; lga: string }[]>([]);
   const [loadingFellows, setLoadingFellows] = useState(true);
 
-  // Fetch fellows on mount
+  // Mentor's assigned LGAs
+  const [mentorLGAs, setMentorLGAs] = useState<string[]>([]);
+
+  // Fetch fellows + mentor profile on mount
   useEffect(() => {
-    async function fetchFellows() {
+    async function fetchData() {
       try {
-        const response = await fetch("/api/fellows?limit=500");
-        const json = await response.json();
-        if (json.data) {
-          setAssignedFellows(json.data.map((f: any) => ({
+        const [fellowsRes, profileRes] = await Promise.all([
+          fetch("/api/fellows?limit=500"),
+          fetch("/api/profile"),
+        ]);
+        const fellowsJson = await fellowsRes.json();
+        if (fellowsJson.data) {
+          setAssignedFellows(fellowsJson.data.map((f: any) => ({
             id: f._id,
             name: f.name,
             lga: f.lga
           })));
         }
+        const profileJson = await profileRes.json();
+        if (profileJson.roleDetails?.lgas) {
+          setMentorLGAs(profileJson.roleDetails.lgas as string[]);
+        }
       } catch (err) {
-        console.error("Failed to load fellows", err);
+        console.error("Failed to load form data", err);
       } finally {
         setLoadingFellows(false);
       }
     }
-    fetchFellows();
+    fetchData();
   }, []);
 
   // ─── Form state ──────────────────────
@@ -112,7 +122,7 @@ export default function NewReportPage() {
           // Auto-fill LGA if menteeName changes and matches a fellow
           if (field === "menteeName") {
             const matchedFellow = assignedFellows.find(f => f.name === value);
-            if (matchedFellow && !s.menteeLGA) {
+            if (matchedFellow) {
               updated.menteeLGA = matchedFellow.lga;
             }
           }
@@ -301,11 +311,14 @@ export default function NewReportPage() {
                     )}
                   </div>
                   <div className="flex-1">
-                    <Input
+                    <Select
                       label={i === 0 ? "LGA" : undefined}
-                      placeholder="LGA"
                       value={f.lga}
                       onChange={(e) => updateFellow(i, "lga", e.target.value)}
+                      options={[
+                        { label: "Select LGA", value: "" },
+                        ...mentorLGAs.map((l) => ({ label: l, value: l })),
+                      ]}
                     />
                   </div>
                   {fellows.length > 1 && (
@@ -363,11 +376,14 @@ export default function NewReportPage() {
                       ]}
                     />
                   )}
-                  <Input
+                  <Select
                     label="Mentee LGA"
-                    placeholder="e.g. Etsako East"
                     value={session.menteeLGA}
                     onChange={(e) => updateSession(si, "menteeLGA", e.target.value)}
+                    options={[
+                      { label: "Select LGA", value: "" },
+                      ...mentorLGAs.map((l) => ({ label: l, value: l })),
+                    ]}
                   />
                 </div>
 
