@@ -23,6 +23,7 @@ export async function GET(request: Request) {
         const limit = parseInt(searchParams.get("limit") || "20", 10);
         const skip = (page - 1) * limit;
 
+        const search = searchParams.get("search") || "";
         const filter: Record<string, unknown> = {};
 
         // Mentors only see their own fellows; admins can see all
@@ -32,6 +33,11 @@ export async function GET(request: Request) {
                 return NextResponse.json({ data: [], pagination: { page, limit, total: 0, totalPages: 0 } });
             }
             filter.mentor = mentorDoc._id;
+        }
+
+        if (search) {
+            const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+            filter.$or = [{ name: regex }, { lga: regex }];
         }
 
         const [data, total] = await Promise.all([

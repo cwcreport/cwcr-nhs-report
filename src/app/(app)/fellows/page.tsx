@@ -12,7 +12,7 @@ import { Select } from "@/components/ui/Select";
 import { Card, CardContent } from "@/components/ui/Card";
 import { UserRole } from "@/lib/constants";
 import { api, type Fellow } from "@/lib/api-client";
-import { Plus, UserMinus, FileDown, Trash2, FileUp } from "lucide-react";
+import { Plus, UserMinus, FileDown, Trash2, FileUp, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { exportToCSV } from "@/lib/export";
 import Link from "next/link";
 
@@ -100,26 +100,48 @@ export default function FellowsPage() {
     const [fellows, setFellows] = useState<Fellow[]>([]);
     const [loading, setLoading] = useState(true);
     const [total, setTotal] = useState(0);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [search, setSearch] = useState("");
+    const [searchInput, setSearchInput] = useState("");
     const [showAdd, setShowAdd] = useState(false);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
+    const LIMIT = 20;
+
     const fetchFellows = useCallback(async () => {
         setLoading(true);
         try {
-            const result = await api.fellows.list({ limit: "100" });
+            const params: Record<string, string> = { page: String(page), limit: String(LIMIT) };
+            if (search) params.search = search;
+            const result = await api.fellows.list(params);
             setFellows(result.data);
             setTotal(result.pagination.total);
+            setTotalPages(result.pagination.totalPages);
         } catch {
             // ignore
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [page, search]);
 
     useEffect(() => {
         fetchFellows();
     }, [fetchFellows]);
+
+    // Reset to page 1 when search changes
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        setPage(1);
+        setSearch(searchInput);
+    };
+
+    const handleClearSearch = () => {
+        setSearchInput("");
+        setSearch("");
+        setPage(1);
+    };
 
     // Mentors + Admins only
     if (session?.user && session.user.role !== UserRole.MENTOR && session.user.role !== UserRole.ADMIN) {
@@ -185,6 +207,24 @@ export default function FellowsPage() {
             />
 
             <div className="p-6 space-y-4">
+                {/* Search bar */}
+                <form onSubmit={handleSearch} className="flex items-center gap-2">
+                    <div className="relative flex-1 max-w-sm">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Search by name or LGA…"
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            className="w-full pl-9 pr-4 h-10 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-green-600"
+                        />
+                    </div>
+                    <Button type="submit" size="sm" variant="outline">Search</Button>
+                    {search && (
+                        <Button type="button" size="sm" variant="ghost" onClick={handleClearSearch}>Clear</Button>
+                    )}
+                </form>
+
                 <Card>
                     <CardContent className="pt-4 flex justify-between items-center">
                         <div className="text-sm text-gray-600 max-w-2xl">
@@ -291,6 +331,33 @@ export default function FellowsPage() {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between text-sm text-gray-500">
+                        <span>
+                            Page {page} of {totalPages} &mdash; {total} fellow{total === 1 ? "" : "s"}
+                        </span>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={page <= 1}
+                                onClick={() => setPage((p) => p - 1)}
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={page >= totalPages}
+                                onClick={() => setPage((p) => p + 1)}
+                            >
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                )}
             </div>
 
 
