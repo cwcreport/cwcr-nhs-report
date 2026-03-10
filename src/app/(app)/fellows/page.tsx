@@ -12,7 +12,7 @@ import { Select } from "@/components/ui/Select";
 import { Card, CardContent } from "@/components/ui/Card";
 import { UserRole } from "@/lib/constants";
 import { api, type Fellow } from "@/lib/api-client";
-import { Plus, UserMinus, FileDown, Trash2, FileUp, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Plus, UserMinus, FileDown, Trash2, FileUp, ChevronLeft, ChevronRight, Search, Pencil } from "lucide-react";
 import { exportToCSV } from "@/lib/export";
 import Link from "next/link";
 
@@ -98,6 +98,100 @@ function AddFellowModal({
     );
 }
 
+/* ─── Edit Fellow Modal ─────────────────── */
+function EditFellowModal({
+    open,
+    onClose,
+    onUpdated,
+    fellow,
+}: {
+    open: boolean;
+    onClose: () => void;
+    onUpdated: () => void;
+    fellow: Fellow | null;
+}) {
+    const [form, setForm] = useState({ name: "", gender: "Male", lga: "", profession: "" });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        if (fellow) {
+            setForm({
+                name: fellow.name,
+                gender: fellow.gender,
+                lga: fellow.lga,
+                profession: fellow.profession || "",
+            });
+        }
+    }, [fellow, open]);
+
+    if (!open || !fellow) return null;
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError("");
+        setLoading(true);
+        try {
+            await api.fellows.update(fellow._id, form);
+            onUpdated();
+            onClose();
+        } catch (err) {
+            setError((err as Error).message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4">
+                <form onSubmit={handleSubmit}>
+                    <div className="p-6 space-y-4">
+                        <h2 className="text-lg font-semibold">Edit Fellow</h2>
+                        {error && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</p>}
+                        <Input
+                            label="Full Name *"
+                            value={form.name}
+                            onChange={(e) => setForm({ ...form, name: e.target.value })}
+                            required
+                        />
+                        <Select
+                            label="Gender *"
+                            value={form.gender}
+                            onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                            options={[
+                                { label: "Male", value: "Male" },
+                                { label: "Female", value: "Female" },
+                                { label: "Other", value: "Other" },
+                            ]}
+                            required
+                        />
+                        <Input
+                            label="LGA *"
+                            value={form.lga}
+                            onChange={(e) => setForm({ ...form, lga: e.target.value })}
+                            required
+                        />
+                        <Input
+                            label="Profession"
+                            value={form.profession}
+                            onChange={(e) => setForm({ ...form, profession: e.target.value })}
+                        />
+                    </div>
+                    <div className="flex justify-end gap-3 px-6 pb-6">
+                        <Button type="button" variant="outline" onClick={onClose}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" disabled={loading}>
+                            {loading ? "Saving…" : "Save Changes"}
+                        </Button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 /* ─── Main Page ─────────────────────────── */
 export default function FellowsPage() {
     const { data: session } = useSession();
@@ -110,6 +204,8 @@ export default function FellowsPage() {
     const [search, setSearch] = useState("");
     const [searchInput, setSearchInput] = useState("");
     const [showAdd, setShowAdd] = useState(false);
+    const [showEdit, setShowEdit] = useState(false);
+    const [editingFellow, setEditingFellow] = useState<Fellow | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
@@ -316,7 +412,17 @@ export default function FellowsPage() {
                                         <td className="px-4 py-3 text-right space-x-2">
                                             {session?.user?.role === UserRole.MENTOR && (
                                                 <>
-
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => {
+                                                            setEditingFellow(f);
+                                                            setShowEdit(true);
+                                                        }}
+                                                        title="Edit Fellow"
+                                                    >
+                                                        <Pencil className="h-4 w-4 text-blue-600" />
+                                                    </Button>
                                                     <Link href={`/fellows/${f._id}/documents/upload`}>
                                                         <Button variant="secondary" size="sm">
                                                             <FileUp className="h-3 w-3 mr-1" /> Documents
@@ -373,6 +479,12 @@ export default function FellowsPage() {
                 open={showAdd}
                 onClose={() => setShowAdd(false)}
                 onAdded={fetchFellows}
+            />
+            <EditFellowModal
+                open={showEdit}
+                onClose={() => { setShowEdit(false); setEditingFellow(null); }}
+                onUpdated={fetchFellows}
+                fellow={editingFellow}
             />
         </>
     );
