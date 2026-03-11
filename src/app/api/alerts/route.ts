@@ -3,7 +3,7 @@
    ────────────────────────────────────────── */
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import { Alert, DeskOfficer } from "@/models";
+import { Alert, Coordinator, DeskOfficer, Mentor } from "@/models";
 import { UserRole } from "@/lib/constants";
 import { requireRole } from "@/lib/auth-guard";
 import { jsonOk, parsePagination } from "@/lib/api-helpers";
@@ -25,7 +25,16 @@ export async function GET(request: NextRequest) {
   if (status) filter.status = status;
   if (weekKey) filter.weekKey = weekKey;
 
-  if (session!.user.role === UserRole.ZONAL_DESK_OFFICER) {
+  if (session!.user.role === UserRole.COORDINATOR) {
+    const coordinatorDoc = await Coordinator.findOne({ authId: session!.user.id });
+    if (coordinatorDoc) {
+      // Alert.mentor stores User IDs (authId), so get mentor authIds under this coordinator
+      const mentorAuthIds = await Mentor.find({ coordinator: coordinatorDoc._id }).distinct("authId");
+      filter.mentor = { $in: mentorAuthIds };
+    } else {
+      return jsonOk({ data: [], pagination: { page, limit, total: 0, totalPages: 0 } });
+    }
+  } else if (session!.user.role === UserRole.ZONAL_DESK_OFFICER) {
     const deskOfficerDoc = await DeskOfficer.findOne({ authId: session!.user.id });
     if (deskOfficerDoc && deskOfficerDoc.states && deskOfficerDoc.states.length > 0) {
       filter.state = { $in: deskOfficerDoc.states };

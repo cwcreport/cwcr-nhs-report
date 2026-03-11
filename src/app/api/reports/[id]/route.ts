@@ -3,7 +3,7 @@
    ────────────────────────────────────────── */
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import { WeeklyReport, Mentor, Coordinator } from "@/models";
+import { WeeklyReport, Mentor, Coordinator, DeskOfficer } from "@/models";
 import { UserRole } from "@/lib/constants";
 import { requireAuth } from "@/lib/auth-guard";
 import { jsonOk, jsonError, parseBody } from "@/lib/api-helpers";
@@ -31,18 +31,39 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
   if (!report) return jsonError("Report not found", 404);
 
-  // Mentors can only view their own
-  let mentorDocId = null;
-  if (session!.user.role === UserRole.MENTOR) {
-    const mentorDoc = await Mentor.findOne({ authId: session!.user.id });
-    if (mentorDoc) mentorDocId = mentorDoc._id.toString();
+  const mentorDoc: any = (report as any).mentor;
 
-    if (report.mentor._id.toString() !== mentorDocId) {
+  if (!mentorDoc) return jsonError("Report mentor data not found", 404);
+
+  // Mentors can only view their own
+  if (session!.user.role === UserRole.MENTOR) {
+    const myMentorDoc = await Mentor.findOne({ authId: session!.user.id });
+    if (!myMentorDoc || mentorDoc._id.toString() !== myMentorDoc._id.toString()) {
       return jsonError("Forbidden", 403);
     }
   }
 
-  const mentorDoc: any = (report as any).mentor;
+  // Coordinators can only view reports from their assigned mentors
+  if (session!.user.role === UserRole.COORDINATOR) {
+    const coordDoc = await Coordinator.findOne({ authId: session!.user.id });
+    if (!coordDoc || !mentorDoc?.coordinator || mentorDoc.coordinator.toString() !== coordDoc._id.toString()) {
+      return jsonError("Forbidden", 403);
+    }
+  }
+
+  // Desk officers can only view reports from mentors in their assigned states
+  if (session!.user.role === UserRole.ZONAL_DESK_OFFICER) {
+    const deskOfficerDoc = await DeskOfficer.findOne({ authId: session!.user.id });
+    if (!deskOfficerDoc || !deskOfficerDoc.states?.length) {
+      return jsonError("Forbidden", 403);
+    }
+    const mentorStates = mentorDoc?.states ?? [];
+    const hasOverlap = mentorStates.some((s: string) => deskOfficerDoc.states.includes(s));
+    if (!hasOverlap) {
+      return jsonError("Forbidden", 403);
+    }
+  }
+
   const mentorUser = mentorDoc?.authId;
   const mentorName = mentorUser?.name;
   const mentorEmail = mentorUser?.email;

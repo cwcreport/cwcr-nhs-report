@@ -3,7 +3,7 @@
    ────────────────────────────────────────── */
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import { Alert } from "@/models";
+import { Alert, Coordinator, Mentor } from "@/models";
 import { UserRole, AlertStatus } from "@/lib/constants";
 import { requireRole } from "@/lib/auth-guard";
 import { jsonOk, jsonError, parseBody } from "@/lib/api-helpers";
@@ -20,6 +20,21 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   if (!body) return jsonError("Invalid body");
 
   await connectDB();
+
+  // Zone check: coordinators can only update alerts for their own mentors
+  if (session!.user.role === UserRole.COORDINATOR) {
+    const existingAlert = await Alert.findById(id);
+    if (!existingAlert) return jsonError("Alert not found", 404);
+
+    const coordinatorDoc = await Coordinator.findOne({ authId: session!.user.id });
+    if (!coordinatorDoc) return jsonError("Forbidden", 403);
+
+    // Alert.mentor stores User ID (authId); check if this user is a mentor under this coordinator
+    const mentorDoc = await Mentor.findOne({ authId: existingAlert.mentor, coordinator: coordinatorDoc._id });
+    if (!mentorDoc) {
+      return jsonError("Forbidden — this alert belongs to a mentor not assigned to you.", 403);
+    }
+  }
 
   const update: Record<string, unknown> = {};
   if (body.status && Object.values(AlertStatus).includes(body.status as AlertStatus)) {

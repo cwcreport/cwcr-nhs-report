@@ -37,7 +37,7 @@ export async function GET(_request: NextRequest) {
     } else if (user.role === UserRole.ZONAL_DESK_OFFICER) {
       const deskOfficer = await DeskOfficer.findOne({ authId: user.id }).lean();
       if (deskOfficer && deskOfficer.states && deskOfficer.states.length > 0) {
-        const mentors = await Mentor.find({ state: { $in: deskOfficer.states } }).lean();
+        const mentors = await Mentor.find({ states: { $in: deskOfficer.states } }).lean();
         mentorAuthIds = mentors.map(m => m.authId.toString());
         mentorDocIds = mentors.map(m => m._id.toString());
       } else {
@@ -58,15 +58,7 @@ export async function GET(_request: NextRequest) {
     // Note: Alert schema uses User ID for mentor field.
     if (mentorAuthIds) alertFilter.mentor = { $in: mentorAuthIds };
 
-    // For submissionsByState
-    const aggregateMatch: any = {};
-    if (mentorDocIds) {
-      // Need to convert string array to ObjectIds if using $in with ObjectIds in aggregate
-      // But we can just rely on the $lookup and match after, or match WeeklyReport.mentor first
-      // Assuming WeeklyReport.mentor stores the Mentor document ObjectId
-      // Actually we'll just not filter the starting stage if it's too complex, wait, 
-      // easiest is to add a $match stage right at the beginning.
-    }
+    const isZoneScoped = user.role === UserRole.COORDINATOR || user.role === UserRole.ZONAL_DESK_OFFICER;
 
     const [
       totalMentors,
@@ -79,7 +71,12 @@ export async function GET(_request: NextRequest) {
       User.countDocuments(activeMentorFilter),
       WeeklyReport.countDocuments(reportFilter),
       Alert.countDocuments(alertFilter),
-      user.role === UserRole.ADMIN || user.role === UserRole.COORDINATOR || user.role === UserRole.ZONAL_DESK_OFFICER ? WeeklyRollup.find().sort({ weekKey: -1 }).limit(12).lean() : Promise.resolve([]),
+      // Admins get pre-computed global rollups; coordinators/desk officers get zone-scoped rollups
+      user.role === UserRole.ADMIN
+        ? WeeklyRollup.find().sort({ weekKey: -1 }).limit(12).lean()
+        : isZoneScoped
+          ? buildZoneScopedRollups(mentorDocIds ?? [], mentorDocIds?.length ?? 0)
+          : Promise.resolve([]),
     ]);
 
     // Aggregate submissions by state
@@ -93,9 +90,9 @@ export async function GET(_request: NextRequest) {
     aggregatePipeline.push(
       {
         $lookup: {
-          from: "mentors", // wait, mentor.state is in Mentor collection now, not User collection!
+          from: "mentors",
           localField: "mentor",
-          foreignField: "_id", // If "mentor" field on WeeklyReport is Mentor model _id, we need to lookup in "mentors" collection!
+          foreignField: "_id",
           as: "mentorData",
         },
       },
@@ -129,4 +126,82 @@ export async function GET(_request: NextRequest) {
     console.error("Dashboard API Error:", err);
     return jsonError(`Dashboard Server Error: ${err.message}`, 500);
   }
+}
+
+/**
+ * Build zone-scoped rollup data from WeeklyReports for coordinators / desk officers.
+ * Instead of returning global WeeklyRollup records, this aggregates data only from
+ * the reports belonging to the user's scoped set of mentors.
+ */
+async function buildZoneScopedRollups(mentorDocIds: string[], scopedMentorCount: number) {
+  if (mentorDocIds.length === 0) return [];
+
+  const mentorObjectIds = mentorDocIds.map(id => new mongoose.Types.ObjectId(id));
+
+  const rawRollups = await WeeklyReport.aggregate([
+    { $match: { mentor: { $in: mentorObjectIds } } },
+    {
+      $lookup: {
+        from: "mentors",
+        localField: "mentor",
+        foreignField: "_id",
+        as: "mentorData",
+      },
+    },
+    { $unwind: { path: "$mentorData", preserveNullAndEmptyArrays: true } },
+    {
+      $group: {
+        _id: "$weekKey",
+        reportsSubmitted: { $sum: 1 },
+        totalSessions: { $sum: "$sessionsCount" },
+        totalCheckins: { $sum: "$menteesCheckedIn" },
+        urgentAlertsCount: { $sum: { $cond: ["$urgentAlert", 1, 0] } },
+        allChallenges: { $push: "$challenges" },
+        allStates: { $push: "$mentorData.states" },
+      },
+    },
+    { $sort: { _id: -1 } },
+    { $limit: 12 },
+  ]);
+
+  return rawRollups.map(r => {
+    // Flatten challenges (array of arrays) and compute top 5 by frequency
+    const challengeFreq: Record<string, number> = {};
+    for (const arr of r.allChallenges) {
+      for (const ch of arr) {
+        challengeFreq[ch] = (challengeFreq[ch] || 0) + 1;
+      }
+    }
+    const topChallenges = Object.entries(challengeFreq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
+
+    // Flatten states (array of arrays) and compute top 5 by frequency
+    const stateFreq: Record<string, number> = {};
+    for (const arr of r.allStates) {
+      if (Array.isArray(arr)) {
+        for (const s of arr) {
+          if (s) stateFreq[s] = (stateFreq[s] || 0) + 1;
+        }
+      }
+    }
+    const topStates = Object.entries(stateFreq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, count]) => ({ name, count }));
+
+    return {
+      weekKey: r._id,
+      reportsSubmitted: r.reportsSubmitted,
+      expectedReports: scopedMentorCount,
+      submissionRate: scopedMentorCount > 0 ? r.reportsSubmitted / scopedMentorCount : 0,
+      totalSessions: r.totalSessions,
+      totalCheckins: r.totalCheckins,
+      urgentAlertsCount: r.urgentAlertsCount,
+      topChallenges,
+      topStates,
+      generatedAt: new Date(),
+    };
+  });
 }
