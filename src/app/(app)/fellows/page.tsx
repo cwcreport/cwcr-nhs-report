@@ -21,10 +21,12 @@ function AddFellowModal({
     open,
     onClose,
     onAdded,
+    mentorLGAs,
 }: {
     open: boolean;
     onClose: () => void;
     onAdded: () => void;
+    mentorLGAs: string[];
 }) {
     const [form, setForm] = useState({ name: "", gender: "Male", lga: "", profession: "" });
     const [loading, setLoading] = useState(false);
@@ -72,10 +74,14 @@ function AddFellowModal({
                             ]}
                             required
                         />
-                        <Input
+                        <Select
                             label="LGA *"
                             value={form.lga}
                             onChange={(e) => setForm({ ...form, lga: e.target.value })}
+                            options={[
+                                { label: "Select LGA", value: "" },
+                                ...mentorLGAs.map((l) => ({ label: l, value: l })),
+                            ]}
                             required
                         />
                         <Input
@@ -104,11 +110,13 @@ function EditFellowModal({
     onClose,
     onUpdated,
     fellow,
+    mentorLGAs,
 }: {
     open: boolean;
     onClose: () => void;
     onUpdated: () => void;
     fellow: Fellow | null;
+    mentorLGAs: string[];
 }) {
     const [form, setForm] = useState({ name: "", gender: "Male", lga: "", profession: "" });
     const [loading, setLoading] = useState(false);
@@ -166,10 +174,14 @@ function EditFellowModal({
                             ]}
                             required
                         />
-                        <Input
+                        <Select
                             label="LGA *"
                             value={form.lga}
                             onChange={(e) => setForm({ ...form, lga: e.target.value })}
+                            options={[
+                                { label: "Select LGA", value: "" },
+                                ...mentorLGAs.map((l) => ({ label: l, value: l })),
+                            ]}
                             required
                         />
                         <Input
@@ -208,8 +220,25 @@ export default function FellowsPage() {
     const [editingFellow, setEditingFellow] = useState<Fellow | null>(null);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+    const [mentorLGAs, setMentorLGAs] = useState<string[]>([]);
 
     const LIMIT = 20;
+
+    // Fetch mentor's assigned LGAs
+    useEffect(() => {
+        async function fetchMentorLGAs() {
+            try {
+                const res = await fetch("/api/profile");
+                const json = await res.json();
+                if (json.roleDetails?.lgas) {
+                    setMentorLGAs(json.roleDetails.lgas as string[]);
+                }
+            } catch {
+                // ignore
+            }
+        }
+        fetchMentorLGAs();
+    }, []);
 
     const fetchFellows = useCallback(async () => {
         setLoading(true);
@@ -479,12 +508,14 @@ export default function FellowsPage() {
                 open={showAdd}
                 onClose={() => setShowAdd(false)}
                 onAdded={fetchFellows}
+                mentorLGAs={mentorLGAs}
             />
             <EditFellowModal
                 open={showEdit}
                 onClose={() => { setShowEdit(false); setEditingFellow(null); }}
                 onUpdated={fetchFellows}
                 fellow={editingFellow}
+                mentorLGAs={mentorLGAs}
             />
         </>
     );

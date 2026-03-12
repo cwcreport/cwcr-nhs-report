@@ -109,6 +109,26 @@ export default function NewReportPage() {
   const removeFellow = (idx: number) =>
     setFellows((prev) => prev.filter((_, i) => i !== idx));
 
+  // ─── Duration helper ─────────────────
+  const computeDuration = (startTime: string, endTime: string): string => {
+    if (!startTime || !endTime) return "";
+    const startParts = startTime.split(":");
+    const endParts = endTime.split(":");
+    if (startParts.length < 2 || endParts.length < 2) return "";
+    const sh = Number(startParts[0]);
+    const sm = Number(startParts[1]);
+    const eh = Number(endParts[0]);
+    const em = Number(endParts[1]);
+    if (isNaN(sh) || isNaN(sm) || isNaN(eh) || isNaN(em)) return "";
+    const diffMin = (eh * 60 + em) - (sh * 60 + sm);
+    if (diffMin <= 0) return "";
+    const hours = Math.floor(diffMin / 60);
+    const mins = diffMin % 60;
+    if (hours > 0 && mins > 0) return `${hours} hour${hours > 1 ? "s" : ""} ${mins} minute${mins > 1 ? "s" : ""}`;
+    if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""}`;
+    return `${mins} minute${mins > 1 ? "s" : ""}`;
+  };
+
   // ─── Session helpers ────────────────
   const updateSession = (
     idx: number,
@@ -125,6 +145,12 @@ export default function NewReportPage() {
             if (matchedFellow) {
               updated.menteeLGA = matchedFellow.lga;
             }
+          }
+          // Auto-fill duration when start or end time changes
+          if (field === "startTime" || field === "endTime") {
+            const start = field === "startTime" ? (value as string) : s.startTime;
+            const end = field === "endTime" ? (value as string) : s.endTime;
+            updated.duration = computeDuration(start, end);
           }
           return updated;
         }
@@ -398,24 +424,23 @@ export default function NewReportPage() {
                   />
                   <Input
                     label="Start Time *"
-                    placeholder="05:00 PM"
+                    type="time"
                     value={session.startTime}
                     onChange={(e) => updateSession(si, "startTime", e.target.value)}
                     required
                   />
                   <Input
                     label="End Time *"
-                    placeholder="06:30 PM"
+                    type="time"
                     value={session.endTime}
                     onChange={(e) => updateSession(si, "endTime", e.target.value)}
                     required
                   />
                   <Input
-                    label="Duration *"
-                    placeholder="1 hour 30 minutes"
+                    label="Duration"
+                    placeholder="Auto-calculated"
                     value={session.duration}
-                    onChange={(e) => updateSession(si, "duration", e.target.value)}
-                    required
+                    readOnly
                   />
                 </div>
 
@@ -432,16 +457,16 @@ export default function NewReportPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-2">Challenges Identified</p>
                   {session.challenges.map((c, ci) => (
-                    <div key={ci} className="flex items-center gap-2 mb-2">
-                      <span className="text-gray-400 text-sm">-</span>
-                      <Input
+                    <div key={ci} className="flex items-start gap-2 mb-2">
+                      <span className="text-gray-400 text-sm mt-2">-</span>
+                      <Textarea
                         placeholder="Challenge…"
                         value={c}
                         onChange={(e) => updateBullet(si, "challenges", ci, e.target.value)}
-                        className="flex-1"
+                        className="flex-1 min-h-[60px]"
                       />
                       {session.challenges.length > 1 && (
-                        <button type="button" onClick={() => removeBullet(si, "challenges", ci)} className="text-red-400 hover:text-red-600">
+                        <button type="button" onClick={() => removeBullet(si, "challenges", ci)} className="text-red-400 hover:text-red-600 mt-2">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       )}
@@ -456,16 +481,16 @@ export default function NewReportPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-2">Solutions Proffered</p>
                   {session.solutions.map((s, sui) => (
-                    <div key={sui} className="flex items-center gap-2 mb-2">
-                      <span className="text-gray-400 text-sm">-</span>
-                      <Input
+                    <div key={sui} className="flex items-start gap-2 mb-2">
+                      <span className="text-gray-400 text-sm mt-2">-</span>
+                      <Textarea
                         placeholder="Solution…"
                         value={s}
                         onChange={(e) => updateBullet(si, "solutions", sui, e.target.value)}
-                        className="flex-1"
+                        className="flex-1 min-h-[60px]"
                       />
                       {session.solutions.length > 1 && (
-                        <button type="button" onClick={() => removeBullet(si, "solutions", sui)} className="text-red-400 hover:text-red-600">
+                        <button type="button" onClick={() => removeBullet(si, "solutions", sui)} className="text-red-400 hover:text-red-600 mt-2">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       )}
@@ -480,16 +505,16 @@ export default function NewReportPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-2">Action Plan</p>
                   {session.actionPlan.map((a, ai) => (
-                    <div key={ai} className="flex items-center gap-2 mb-2">
-                      <span className="text-gray-400 text-sm">-</span>
-                      <Input
+                    <div key={ai} className="flex items-start gap-2 mb-2">
+                      <span className="text-gray-400 text-sm mt-2">-</span>
+                      <Textarea
                         placeholder="Action item…"
                         value={a}
                         onChange={(e) => updateBullet(si, "actionPlan", ai, e.target.value)}
-                        className="flex-1"
+                        className="flex-1 min-h-[60px]"
                       />
                       {session.actionPlan.length > 1 && (
-                        <button type="button" onClick={() => removeBullet(si, "actionPlan", ai)} className="text-red-400 hover:text-red-600">
+                        <button type="button" onClick={() => removeBullet(si, "actionPlan", ai)} className="text-red-400 hover:text-red-600 mt-2">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       )}
@@ -721,9 +746,9 @@ export default function NewReportPage() {
             menteeName: f.name,
             menteeLGA: f.lga,
             sessionDate: faker.date.recent().toISOString().split("T")[0],
-            startTime: "09:00 AM",
-            endTime: "10:30 AM",
-            duration: "1.5 hours",
+            startTime: "09:00",
+            endTime: "10:30",
+            duration: "1 hour 30 minutes",
             topicDiscussed: faker.company.catchPhrase(),
             challenges: [faker.hacker.phrase()],
             solutions: [faker.company.catchPhrase()],
