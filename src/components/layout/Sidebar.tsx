@@ -119,6 +119,12 @@ const NAV_ITEMS = [
   },
 ] satisfies { label: string; href: string; icon: typeof LayoutDashboard; roles: string[] }[];
 
+const ROLE_DISPLAY_NAMES: Record<string, string> = {
+  [UserRole.COORDINATOR]: "Zonal Coordinator",
+  [UserRole.ME_OFFICER]: "M&E Officer",
+  [UserRole.ZONAL_DESK_OFFICER]: "Desk Officer",
+};
+
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
@@ -216,7 +222,7 @@ export function Sidebar() {
                 </p>
                 <p className="text-xs text-gray-500 truncate">{session.user.email}</p>
                 <span className="inline-block mt-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 capitalize">
-                  {session.user.role === UserRole.COORDINATOR ? "Zonal Coordinator" : session.user.role === UserRole.ME_OFFICER ? "M&E Officer" : session.user.role}
+                  {ROLE_DISPLAY_NAMES[session.user.role] ?? session.user.role}
                 </span>
               </div>
             </div>
