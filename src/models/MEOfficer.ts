@@ -5,6 +5,7 @@ import mongoose, { Schema, Document, Model, Types, models } from "mongoose";
 
 export interface IMEOfficer extends Document {
     authId: Types.ObjectId;
+    states: string[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -12,6 +13,11 @@ export interface IMEOfficer extends Document {
 const MEOfficerSchema = new Schema<IMEOfficer>(
     {
         authId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+        states: {
+            type: [String],
+            uppercase: true,
+            default: []
+        },
     },
     { timestamps: true }
 );

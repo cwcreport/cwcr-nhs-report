@@ -44,6 +44,16 @@ export async function GET(_request: NextRequest) {
         mentorAuthIds = [];
         mentorDocIds = [];
       }
+    } else if (user.role === UserRole.ME_OFFICER) {
+      const meOfficer = await MEOfficer.findOne({ authId: user.id }).lean();
+      if (meOfficer && meOfficer.states && meOfficer.states.length > 0) {
+        const mentors = await Mentor.find({ states: { $in: meOfficer.states } }).lean();
+        mentorAuthIds = mentors.map(m => m.authId.toString());
+        mentorDocIds = mentors.map(m => m._id.toString());
+      } else {
+        mentorAuthIds = [];
+        mentorDocIds = [];
+      }
     }
 
     const baseMentorFilter: any = { role: UserRole.MENTOR };
@@ -58,7 +68,7 @@ export async function GET(_request: NextRequest) {
     // Note: Alert schema uses User ID for mentor field.
     if (mentorAuthIds) alertFilter.mentor = { $in: mentorAuthIds };
 
-    const isZoneScoped = user.role === UserRole.COORDINATOR || user.role === UserRole.ZONAL_DESK_OFFICER;
+    const isZoneScoped = user.role === UserRole.COORDINATOR || user.role === UserRole.ZONAL_DESK_OFFICER || user.role === UserRole.ME_OFFICER;
 
     const [
       totalMentors,
@@ -71,8 +81,8 @@ export async function GET(_request: NextRequest) {
       User.countDocuments(activeMentorFilter),
       WeeklyReport.countDocuments(reportFilter),
       Alert.countDocuments(alertFilter),
-      // Admins and M&E Officers get pre-computed global rollups; coordinators/desk officers get zone-scoped rollups
-      user.role === UserRole.ADMIN || user.role === UserRole.ME_OFFICER
+      // Admins get pre-computed global rollups; zone-scoped roles get zone-scoped rollups
+      user.role === UserRole.ADMIN
         ? WeeklyRollup.find().sort({ weekKey: -1 }).limit(12).lean()
         : isZoneScoped
           ? buildZoneScopedRollups(mentorDocIds ?? [], mentorDocIds?.length ?? 0)

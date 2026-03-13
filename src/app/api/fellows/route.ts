@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
 import { Fellow } from "@/models/Fellow";
 import { Mentor } from "@/models/Mentor";
+import { DeskOfficer } from "@/models/DeskOfficer";
+import { MEOfficer } from "@/models/MEOfficer";
 import { UserRole } from "@/lib/constants";
 import { logActivity } from "@/lib/activity-logger";
 
@@ -13,7 +15,7 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        if (session.user.role !== UserRole.MENTOR && session.user.role !== UserRole.ADMIN && session.user.role !== UserRole.ME_OFFICER) {
+        if (session.user.role !== UserRole.MENTOR && session.user.role !== UserRole.ADMIN && session.user.role !== UserRole.ME_OFFICER && session.user.role !== UserRole.ZONAL_DESK_OFFICER) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -26,13 +28,29 @@ export async function GET(request: Request) {
         const search = searchParams.get("search") || "";
         const filter: Record<string, unknown> = {};
 
-        // Mentors only see their own fellows; admins can see all
+        // Mentors only see their own fellows; admins can see all; ME/desk officers see zone-scoped
         if (session.user.role === UserRole.MENTOR) {
             const mentorDoc = await Mentor.findOne({ authId: session.user.id }).lean();
             if (!mentorDoc) {
                 return NextResponse.json({ data: [], pagination: { page, limit, total: 0, totalPages: 0 } });
             }
             filter.mentor = mentorDoc._id;
+        } else if (session.user.role === UserRole.ZONAL_DESK_OFFICER) {
+            const deskOfficerDoc = await DeskOfficer.findOne({ authId: session.user.id }).lean();
+            if (deskOfficerDoc && deskOfficerDoc.states && deskOfficerDoc.states.length > 0) {
+                const mentorIds = await Mentor.find({ states: { $in: deskOfficerDoc.states } }).distinct("_id");
+                filter.mentor = { $in: mentorIds };
+            } else {
+                return NextResponse.json({ data: [], pagination: { page, limit, total: 0, totalPages: 0 } });
+            }
+        } else if (session.user.role === UserRole.ME_OFFICER) {
+            const meOfficerDoc = await MEOfficer.findOne({ authId: session.user.id }).lean();
+            if (meOfficerDoc && meOfficerDoc.states && meOfficerDoc.states.length > 0) {
+                const mentorIds = await Mentor.find({ states: { $in: meOfficerDoc.states } }).distinct("_id");
+                filter.mentor = { $in: mentorIds };
+            } else {
+                return NextResponse.json({ data: [], pagination: { page, limit, total: 0, totalPages: 0 } });
+            }
         }
 
         if (search) {

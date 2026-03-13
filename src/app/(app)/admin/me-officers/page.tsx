@@ -8,6 +8,7 @@ import { Header } from "@/components/layout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Badge } from "@/components/ui/Badge";
+import { LocationSelector } from "@/components/ui/LocationSelector";
 import { Card, CardContent } from "@/components/ui/Card";
 import { api, type MEOfficer } from "@/lib/api-client";
 import { Plus, UserCheck, UserX, ChevronLeft, ChevronRight, KeyRound, Pencil, Trash2 } from "lucide-react";
@@ -24,11 +25,12 @@ function MEOfficerModal({
     onSuccess: () => void;
     meOfficer: MEOfficer | null;
 }) {
-    const [form, setForm] = useState<{ name: string, email: string, password: string, phone: string }>({
+    const [form, setForm] = useState<{ name: string, email: string, password: string, phone: string, states: string[] }>({
         name: "",
         email: "",
         password: "",
         phone: "",
+        states: [],
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
@@ -40,9 +42,10 @@ function MEOfficerModal({
                 email: meOfficer.email,
                 password: "",
                 phone: meOfficer.phone || "",
+                states: meOfficer.states || [],
             });
         } else {
-            setForm({ name: "", email: "", password: "", phone: "" });
+            setForm({ name: "", email: "", password: "", phone: "", states: [] });
         }
     }, [meOfficer, open]);
 
@@ -59,6 +62,7 @@ function MEOfficerModal({
                     name: form.name,
                     email: form.email,
                     phone: form.phone,
+                    states: form.states,
                 });
             } else {
                 if (!form.password) throw new Error("Password is required for new M&E officers.");
@@ -68,6 +72,7 @@ function MEOfficerModal({
                     email: form.email,
                     password: form.password,
                     phone: form.phone,
+                    states: form.states,
                 });
             }
             onSuccess();
@@ -117,6 +122,13 @@ function MEOfficerModal({
                             value={form.phone}
                             onChange={(e) => setForm({ ...form, phone: e.target.value })}
                         />
+                        <div className="space-y-1">
+                            <label className="block text-sm font-medium text-gray-700">Zones Supervised *</label>
+                            <LocationSelector
+                                selectedStates={form.states}
+                                onChangeStates={(states) => setForm({ ...form, states })}
+                            />
+                        </div>
                     </div>
                     <div className="flex justify-end gap-3 px-6 pb-6">
                         <Button type="button" variant="outline" onClick={onClose}>
@@ -356,6 +368,7 @@ export default function MEOfficersPage() {
                                 <th className="px-4 py-3 font-medium text-gray-600">Name</th>
                                 <th className="px-4 py-3 font-medium text-gray-600">Email</th>
                                 <th className="px-4 py-3 font-medium text-gray-600">Phone</th>
+                                <th className="px-4 py-3 font-medium text-gray-600">Zones Supervised</th>
                                 <th className="px-4 py-3 font-medium text-gray-600">Status</th>
                                 <th className="px-4 py-3 font-medium text-gray-600 text-right">
                                     Actions
@@ -365,13 +378,13 @@ export default function MEOfficersPage() {
                         <tbody className="divide-y">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                                    <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
                                         Loading…
                                     </td>
                                 </tr>
                             ) : !meOfficers.length ? (
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                                    <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
                                         No M&E officers found.
                                     </td>
                                 </tr>
@@ -389,6 +402,7 @@ export default function MEOfficersPage() {
                                         <td className="px-4 py-3 font-medium">{c.name}</td>
                                         <td className="px-4 py-3 text-gray-600">{c.email}</td>
                                         <td className="px-4 py-3">{c.phone || "—"}</td>
+                                        <td className="px-4 py-3 text-gray-600 break-words max-w-xs">{c.states?.join(", ") || "—"}</td>
                                         <td className="px-4 py-3">
                                             <Badge variant={c.active ? "default" : "warning"}>
                                                 {c.active ? "Active" : "Suspended"}
