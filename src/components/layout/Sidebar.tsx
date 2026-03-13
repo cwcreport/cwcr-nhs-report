@@ -25,7 +25,7 @@ const NAV_ITEMS = [
     label: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
-    roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.MENTOR, UserRole.ZONAL_DESK_OFFICER],
+    roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.MENTOR, UserRole.ZONAL_DESK_OFFICER, UserRole.ME_OFFICER],
   },
   {
     label: "Submit Report",
@@ -37,25 +37,25 @@ const NAV_ITEMS = [
     label: "Reports",
     href: "/reports",
     icon: FileText,
-    roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.MENTOR, UserRole.ZONAL_DESK_OFFICER],
+    roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.MENTOR, UserRole.ZONAL_DESK_OFFICER, UserRole.ME_OFFICER],
   },
   {
     label: "Monthly Report",
     href: "/reports/monthly",
     icon: FileText,
-    roles: [UserRole.COORDINATOR, UserRole.ZONAL_DESK_OFFICER],
+    roles: [UserRole.COORDINATOR, UserRole.ZONAL_DESK_OFFICER, UserRole.ME_OFFICER],
   },
   {
     label: "Fellows",
     href: "/fellows",
     icon: Users,
-    roles: [UserRole.ADMIN, UserRole.MENTOR],
+    roles: [UserRole.ADMIN, UserRole.MENTOR, UserRole.ME_OFFICER],
   },
   {
     label: "Mentors Management",
     href: "/mentors",
     icon: Users,
-    roles: [UserRole.ADMIN, UserRole.COORDINATOR],
+    roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.ME_OFFICER],
   },
   {
     label: "Admins Management",
@@ -76,10 +76,16 @@ const NAV_ITEMS = [
     roles: [UserRole.ADMIN],
   },
   {
+    label: "M&E Officers Management",
+    href: "/admin/me-officers",
+    icon: Users,
+    roles: [UserRole.ADMIN],
+  },
+  {
     label: "Alerts",
     href: "/alerts",
     icon: AlertTriangle,
-    roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.ZONAL_DESK_OFFICER],
+    roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.ZONAL_DESK_OFFICER, UserRole.ME_OFFICER],
   },
   {
     label: "Document Types",
@@ -97,7 +103,7 @@ const NAV_ITEMS = [
     label: "Analytics",
     href: "/analytics",
     icon: BarChart3,
-    roles: [UserRole.ADMIN, UserRole.COORDINATOR],
+    roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.ME_OFFICER],
   },
   {
     label: "Activity Logs",
@@ -109,9 +115,15 @@ const NAV_ITEMS = [
     label: "Settings",
     href: "/settings",
     icon: Settings,
-    roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.MENTOR],
+    roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.MENTOR, UserRole.ME_OFFICER],
   },
 ] satisfies { label: string; href: string; icon: typeof LayoutDashboard; roles: string[] }[];
+
+const ROLE_DISPLAY_NAMES: Record<string, string> = {
+  [UserRole.COORDINATOR]: "Zonal Coordinator",
+  [UserRole.ME_OFFICER]: "M&E Officer",
+  [UserRole.ZONAL_DESK_OFFICER]: "Desk Officer",
+};
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -210,7 +222,7 @@ export function Sidebar() {
                 </p>
                 <p className="text-xs text-gray-500 truncate">{session.user.email}</p>
                 <span className="inline-block mt-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 capitalize">
-                  {session.user.role === UserRole.COORDINATOR ? "Zonal Coordinator" : session.user.role}
+                  {ROLE_DISPLAY_NAMES[session.user.role] ?? session.user.role}
                 </span>
               </div>
             </div>
