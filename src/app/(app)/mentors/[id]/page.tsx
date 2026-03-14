@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/Input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { api, type Mentor } from "@/lib/api-client";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Key, AtSign } from "lucide-react";
+import { LocationSelector } from "@/components/ui/LocationSelector";
+import { ArrowLeft, Key, AtSign, Pencil } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Badge } from "@/components/ui/Badge";
 
@@ -36,6 +37,12 @@ export default function MentorDetailsPage({
     const [changingEmail, setChangingEmail] = useState(false);
     const [changeEmailError, setChangeEmailError] = useState("");
     const [changeEmailSuccess, setChangeEmailSuccess] = useState("");
+
+    const [editOpen, setEditOpen] = useState(false);
+    const [editForm, setEditForm] = useState({ name: "", states: [] as string[], lgas: [] as string[] });
+    const [saving, setSaving] = useState(false);
+    const [editError, setEditError] = useState("");
+    const [editSuccess, setEditSuccess] = useState("");
 
     const fetchMentor = useCallback(async () => {
         setLoading(true);
@@ -109,6 +116,47 @@ export default function MentorDetailsPage({
         }
     };
 
+    const openEditModal = () => {
+        if (mentor) {
+            setEditForm({
+                name: mentor.name,
+                states: mentor.states || [],
+                lgas: mentor.lgas || [],
+            });
+            setEditError("");
+            setEditSuccess("");
+            setEditOpen(true);
+        }
+    };
+
+    const handleEditProfile = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editForm.name.trim()) {
+            setEditError("Name is required.");
+            return;
+        }
+        setSaving(true);
+        setEditError("");
+        setEditSuccess("");
+        try {
+            await api.mentors.update(id, {
+                name: editForm.name.trim(),
+                states: editForm.states,
+                lgas: editForm.lgas,
+            });
+            setEditSuccess("Profile updated successfully.");
+            await fetchMentor();
+            setTimeout(() => {
+                setEditOpen(false);
+                setEditSuccess("");
+            }, 1500);
+        } catch (err) {
+            setEditError((err as Error).message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
     return (
         <>
             <Header title="Mentor Details" subtitle="View details and manage access" />
@@ -166,6 +214,16 @@ export default function MentorDetailsPage({
                                 <CardTitle>Actions</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
+                                {user?.role === "admin" && (
+                                    <div>
+                                        <Button onClick={openEditModal} variant="secondary" className="w-full justify-start">
+                                            <Pencil className="h-4 w-4 mr-2" /> Edit Profile
+                                        </Button>
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            Update the mentor&apos;s name, assigned states, and LGAs.
+                                        </p>
+                                    </div>
+                                )}
                                 {user?.role === "admin" && (
                                     <div>
                                         <Button onClick={() => setResetModalOpen(true)} variant="secondary" className="w-full justify-start">
@@ -297,6 +355,50 @@ export default function MentorDetailsPage({
                                 </Button>
                                 <Button type="submit" disabled={changingEmail}>
                                     {changingEmail ? "Updating…" : "Change Email"}
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {editOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+                        <form onSubmit={handleEditProfile}>
+                            <div className="p-6 space-y-4">
+                                <h2 className="text-lg font-semibold">Edit Mentor Profile</h2>
+                                <p className="text-sm text-gray-600">Update the mentor&apos;s name, states, and LGAs.</p>
+
+                                {editError && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{editError}</p>}
+                                {editSuccess && <p className="text-sm text-green-700 bg-green-50 p-2 rounded">{editSuccess}</p>}
+
+                                <Input
+                                    label="Full Name *"
+                                    value={editForm.name}
+                                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                    required
+                                    autoFocus
+                                />
+
+                                <LocationSelector
+                                    selectedStates={editForm.states}
+                                    onChangeStates={(states) => setEditForm({ ...editForm, states, lgas: [] })}
+                                    showLgas={true}
+                                    selectedLgas={editForm.lgas}
+                                    onChangeLgas={(lgas) => setEditForm({ ...editForm, lgas })}
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3 px-6 pb-6">
+                                <Button type="button" variant="outline" onClick={() => {
+                                    setEditOpen(false);
+                                    setEditError("");
+                                    setEditSuccess("");
+                                }} disabled={saving}>
+                                    Cancel
+                                </Button>
+                                <Button type="submit" disabled={saving || !editForm.name.trim()}>
+                                    {saving ? "Saving…" : "Save Changes"}
                                 </Button>
                             </div>
                         </form>
