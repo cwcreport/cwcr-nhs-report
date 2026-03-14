@@ -4,6 +4,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
@@ -11,7 +12,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Badge } from "@/components/ui/Badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { api, type AlertItem } from "@/lib/api-client";
-import { AlertStatus } from "@/lib/constants";
+import { AlertStatus, UserRole } from "@/lib/constants";
 import { format } from "date-fns";
 import { AlertTriangle, CheckCircle, Clock, MessageSquare } from "lucide-react";
 import { weekRangeLabelFromWeekKey } from "@/lib/date-helpers";
@@ -37,6 +38,9 @@ const statusIcon = (status: string) => {
 };
 
 export default function AlertsPage() {
+  const { data: session } = useSession();
+  const role = session?.user?.role;
+  const canUpdateAlert = role === UserRole.ADMIN || role === UserRole.COORDINATOR;
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
@@ -159,7 +163,7 @@ export default function AlertsPage() {
                     </div>
 
                     {/* Actions */}
-                    {alert.status !== AlertStatus.RESOLVED && (
+                    {canUpdateAlert && alert.status !== AlertStatus.RESOLVED && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -174,7 +178,7 @@ export default function AlertsPage() {
                   </div>
 
                   {/* Expanded update form */}
-                  {expandedId === alert._id && (
+                  {canUpdateAlert && expandedId === alert._id && (
                     <div className="mt-4 pt-4 border-t space-y-3">
                       <Select
                         label="Change Status"

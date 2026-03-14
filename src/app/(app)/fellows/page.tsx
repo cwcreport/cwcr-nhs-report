@@ -273,8 +273,9 @@ export default function FellowsPage() {
         setPage(1);
     };
 
-    // Mentors + Admins + ME Officers only
-    if (session?.user && session.user.role !== UserRole.MENTOR && session.user.role !== UserRole.ADMIN && session.user.role !== UserRole.ME_OFFICER) {
+    // Mentors + Admins + ME Officers + Desk Officers only
+    const isReadOnly = role === UserRole.ME_OFFICER || role === UserRole.ZONAL_DESK_OFFICER;
+    if (session?.user && session.user.role !== UserRole.MENTOR && session.user.role !== UserRole.ADMIN && session.user.role !== UserRole.ME_OFFICER && session.user.role !== UserRole.ZONAL_DESK_OFFICER) {
         return (
             <div className="p-12 text-center text-gray-500">
                 You do not have permission to view this page. Fellows are managed directly by Mentors.
@@ -330,10 +331,12 @@ export default function FellowsPage() {
     return (
         <>
             <Header
-                title={role === UserRole.ADMIN || role === UserRole.ME_OFFICER ? "Fellows" : "My Fellows"}
+                title={role === UserRole.ADMIN || isReadOnly ? "Fellows" : "My Fellows"}
                 subtitle={
-                    role === UserRole.ADMIN || role === UserRole.ME_OFFICER
-                        ? `${role === UserRole.ME_OFFICER ? "Viewing" : "Managing"} ${total} fellow${total === 1 ? "" : "s"}`
+                    isReadOnly
+                        ? `Viewing ${total} fellow${total === 1 ? "" : "s"}`
+                        : role === UserRole.ADMIN
+                        ? `Managing ${total} fellow${total === 1 ? "" : "s"}`
                         : `Managing ${total} assigned fellow${total === 1 ? "" : "s"}`
                 }
             />
@@ -360,7 +363,7 @@ export default function FellowsPage() {
                 <Card>
                     <CardContent className="pt-4 flex justify-between items-center">
                         <div className="text-sm text-gray-600 max-w-2xl">
-                            {role === UserRole.ME_OFFICER
+                            {isReadOnly
                                 ? "View fellows and their details here. You have read-only access."
                                 : role === UserRole.ADMIN
                                 ? "View and manage fellows here."
@@ -401,6 +404,7 @@ export default function FellowsPage() {
                     <table className="w-full text-sm">
                         <thead className="bg-gray-50 text-left">
                             <tr>
+                                {!isReadOnly && (
                                 <th className="px-4 py-3 font-medium text-gray-600 w-10">
                                     {canWrite && (
                                     <input
@@ -411,6 +415,7 @@ export default function FellowsPage() {
                                     />
                                     )}
                                 </th>
+                                )}
                                 <th className="px-4 py-3 font-medium text-gray-600">Name</th>
                                 <th className="px-4 py-3 font-medium text-gray-600">Gender</th>
                                 <th className="px-4 py-3 font-medium text-gray-600">LGA</th>
@@ -424,15 +429,16 @@ export default function FellowsPage() {
                         <tbody className="divide-y">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-8 text-center text-gray-400">Loading…</td>
+                                    <td colSpan={isReadOnly ? 4 : 6} className="px-4 py-8 text-center text-gray-400">Loading…</td>
                                 </tr>
                             ) : !fellows.length ? (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-8 text-center text-gray-400">No fellows added yet.</td>
+                                    <td colSpan={isReadOnly ? 4 : 6} className="px-4 py-8 text-center text-gray-400">No fellows added yet.</td>
                                 </tr>
                             ) : (
                                 fellows.map((f) => (
                                     <tr key={f._id} className="hover:bg-gray-50">
+                                        {!isReadOnly && (
                                         <td className="px-4 py-3">
                                             {canWrite && (
                                             <input
@@ -443,6 +449,7 @@ export default function FellowsPage() {
                                             />
                                             )}
                                         </td>
+                                        )}
                                         <td className="px-4 py-3 font-medium">{f.name}</td>
                                         <td className="px-4 py-3 text-gray-600">{f.gender}</td>
                                         <td className="px-4 py-3 text-gray-600">{f.lga}</td>

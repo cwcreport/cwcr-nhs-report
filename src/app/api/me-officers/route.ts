@@ -38,8 +38,22 @@ export async function GET(request: NextRequest) {
 
     const users = await User.find(filter).select("-password").sort({ name: 1 }).lean();
 
-    const total = users.length;
-    const paginatedUsers = users.slice(skip, skip + limit);
+    const userIds = users.map(u => u._id);
+
+    // Find matching ME officer details linked to these users
+    const meOfficerDetailsList = await MEOfficer.find({ authId: { $in: userIds } }).lean();
+
+    // Combine user info with ME officer info
+    const finalUsers = users.map(u => {
+        const md = meOfficerDetailsList.find(m => m.authId.toString() === u._id.toString());
+        return {
+            ...u,
+            meOfficerId: md?._id,
+        };
+    });
+
+    const total = finalUsers.length;
+    const paginatedUsers = finalUsers.slice(skip, skip + limit);
 
     return jsonOk({
         data: paginatedUsers,

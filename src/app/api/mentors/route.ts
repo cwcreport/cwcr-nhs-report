@@ -72,6 +72,9 @@ export async function GET(request: NextRequest) {
       } else {
         mentorFilter.states = { $in: allowedStates };
       }
+    } else if (session?.user?.role === UserRole.ME_OFFICER) {
+      // ME officers see all mentors (no zone restriction)
+      if (requestedStates.length) mentorFilter.states = { $in: requestedStates };
     } else {
       if (requestedStates.length) mentorFilter.states = { $in: requestedStates };
     }
