@@ -61,7 +61,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 // PATCH /api/mentors/:id
 export async function PATCH(request: NextRequest, { params }: Params) {
-  const { session, error } = await requireRole(UserRole.ADMIN, UserRole.COORDINATOR);
+  const { session, error } = await requireRole(UserRole.ADMIN, UserRole.COORDINATOR, UserRole.ZONAL_DESK_OFFICER);
   if (error) return error;
 
   const { id } = await params;
@@ -78,6 +78,20 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (!mentorDoc || mentorDoc.coordinator.toString() !== coordinatorDoc._id.toString()) {
       return jsonError("Mentor not found", 404);
     }
+  }
+
+  // Zonal desk officers may only update mentors within their assigned states
+  if (session?.user.role === UserRole.ZONAL_DESK_OFFICER) {
+    const deskOfficer = await DeskOfficer.findOne({ authId: session.user.id }).lean();
+    if (!deskOfficer) return jsonError("Desk officer record not found", 404);
+    const allowedStates = (deskOfficer.states || []).map((s) => s.toUpperCase().trim()).filter(Boolean);
+    const mentorDoc = await Mentor.findOne({ authId: id }).lean();
+    if (!mentorDoc || !allowedStates.length) return jsonError("Mentor not found", 404);
+
+    const allowedSet = new Set(allowedStates);
+    const mentorStates = (mentorDoc.states || []).map((s) => String(s).toUpperCase().trim()).filter(Boolean);
+    const isInScope = mentorStates.some((s) => allowedSet.has(s));
+    if (!isInScope) return jsonError("Mentor not found", 404);
   }
 
   // Prevent password/role update via this endpoint
