@@ -38,9 +38,8 @@ export default function ReportsListPage() {
   const stateOptions = (() => {
     if (hasAssignedStates && session?.user?.states?.length) {
       return session.user.states.map((s) => {
-        const formatted = s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
         const matched = STATES.find((st) => st.toUpperCase() === s.toUpperCase());
-        const label = matched ?? formatted;
+        const label = matched ?? s.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
         return { label, value: label };
       });
     }
