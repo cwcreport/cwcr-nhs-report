@@ -10,7 +10,7 @@ import { format, parseISO } from "date-fns";
 import { Header } from "@/components/layout";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
-import { api, type MonthlyReport } from "@/lib/api-client";
+import { api, type MonthlyReport, monthlyReportAuthorName } from "@/lib/api-client";
 import { Plus, Eye, FileText } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { UserRole } from "@/lib/constants";
@@ -95,9 +95,7 @@ export default function MonthlyReportsPage() {
                             ) : (
                                 reports.map((r) => {
                                     const displayMonth = format(parseISO(`${r.month}-01`), "MMMM yyyy");
-                                    const authorName = r.type === "mentor"
-                                        ? (r.mentor as any)?.authId?.name || r.mentor?.name || "Unknown Mentor"
-                                        : (r.coordinator as any)?.authId?.name || r.coordinator?.name || "Unknown Coordinator";
+                                    const authorName = monthlyReportAuthorName(r);
                                     return (
                                         <tr key={r._id} className="hover:bg-gray-50">
                                             <td className="px-4 py-3 font-medium">{displayMonth}</td>

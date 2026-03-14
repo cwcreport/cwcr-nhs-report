@@ -22,7 +22,7 @@ export interface IMonthlyReport extends Document {
 
 const MonthlyReportSchema = new Schema<IMonthlyReport>(
     {
-        type: { type: String, enum: ["mentor", "zonal"], required: true, default: "zonal" },
+        type: { type: String, enum: ["mentor", "zonal"], required: true },
         coordinator: { type: Schema.Types.ObjectId, ref: "Coordinator", index: true },
         mentor: { type: Schema.Types.ObjectId, ref: "Mentor", index: true },
         state: { type: String, required: true },

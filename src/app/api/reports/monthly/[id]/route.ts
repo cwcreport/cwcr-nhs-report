@@ -29,10 +29,10 @@ export async function GET(
             })
             .populate({
                 path: "mentor",
-                populate: {
-                    path: "authId",
-                    select: "name email state"
-                }
+                populate: [
+                    { path: "authId", select: "name email state" },
+                    { path: "coordinator" },
+                ]
             })
             .populate({
                 path: "weeklyReports",
@@ -73,11 +73,8 @@ export async function GET(
             }
             // Coordinators can see their own zonal reports and mentor reports from their mentors
             const isOwnZonal = report.type === "zonal" && report.coordinator?.toString() === coordDoc._id.toString();
-            let isMentorUnderThem = false;
-            if (report.type === "mentor" && report.mentor) {
-                const mentorDoc = await Mentor.findById(report.mentor);
-                isMentorUnderThem = mentorDoc?.coordinator?.toString() === coordDoc._id.toString();
-            }
+            const isMentorUnderThem = report.type === "mentor"
+                && (report as any).mentor?.coordinator?.toString() === coordDoc._id.toString();
             if (!isOwnZonal && !isMentorUnderThem) {
                 return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
             }

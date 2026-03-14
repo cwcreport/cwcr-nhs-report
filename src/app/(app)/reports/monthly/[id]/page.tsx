@@ -10,7 +10,7 @@ import { format, parseISO } from "date-fns";
 import { Header } from "@/components/layout";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
-import { api, type MonthlyReport, type Report } from "@/lib/api-client";
+import { api, type MonthlyReport, type Report, monthlyReportAuthorName } from "@/lib/api-client";
 import { ChevronLeft, FileDown, Eye, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import { toPng } from "html-to-image";
@@ -83,9 +83,7 @@ export default function MonthlyReportDetailPage() {
 
     const displayMonth = format(parseISO(`${report.month}-01`), "MMMM yyyy");
     const isZonal = report.type === "zonal";
-    const authorName = isZonal
-        ? (report.coordinator as any)?.authId?.name || report.coordinator?.name || "Unknown Coordinator"
-        : (report.mentor as any)?.authId?.name || report.mentor?.name || "Unknown Mentor";
+    const authorName = monthlyReportAuthorName(report);
     const authorRole = isZonal ? "Zonal Coordinator" : "Mentor";
 
     return (

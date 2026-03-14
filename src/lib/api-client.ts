@@ -604,6 +604,14 @@ export interface MonthlyReport {
   createdAt: string;
 }
 
+/** Derive display author name from a monthly report */
+export function monthlyReportAuthorName(r: MonthlyReport): string {
+  if (r.type === "mentor") {
+    return r.mentor?.name || "Unknown Mentor";
+  }
+  return r.coordinator?.name || "Unknown Coordinator";
+}
+
 export interface CreateMonthlyReportInput {
   month: string;
   summaryText: string;
