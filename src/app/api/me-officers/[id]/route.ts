@@ -25,7 +25,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
     const meOfficerDoc = await MEOfficer.findOne({ authId: user._id }).lean();
     const merged = {
         ...user,
-        states: meOfficerDoc?.states || []
+        meOfficerId: meOfficerDoc?._id,
     };
 
     return jsonOk(merged);
@@ -44,7 +44,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     delete body.password;
     delete body.role;
 
-    const { states, ...userUpdates } = body;
+    const { ...userUpdates } = body;
 
     await connectDB();
 
@@ -54,21 +54,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     if (!updatedUser) return jsonError("M&E Officer not found", 404);
 
-    // Update ME Officer details
-    const meOfficerUpdate: Record<string, unknown> = {};
-    if (states !== undefined) {
-        meOfficerUpdate.states = Array.isArray(states) ? states.map((s: string) => s.toUpperCase().trim()) : states;
-    }
-
-    const meOfficerDoc = await MEOfficer.findOneAndUpdate(
-        { authId: id },
-        { $set: meOfficerUpdate },
-        { new: true, upsert: true }
-    ).lean();
+    // Ensure ME Officer document exists
+    const meOfficerDoc = await MEOfficer.findOne({ authId: id }).lean();
 
     const merged = {
         ...updatedUser,
-        states: meOfficerDoc?.states || []
+        meOfficerId: meOfficerDoc?._id,
     };
 
     void logActivity({ session, action: "UPDATE_ME_OFFICER", targetType: "MEOfficer", targetId: id, targetName: updatedUser.name });

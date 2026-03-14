@@ -4,7 +4,7 @@
 import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
-import { User, Mentor, Coordinator, DeskOfficer, MEOfficer } from "@/models";
+import { User, Mentor, Coordinator, DeskOfficer } from "@/models";
 import { UserRole } from "@/lib/constants";
 import { requireRole } from "@/lib/auth-guard";
 import { jsonOk, jsonError, jsonCreated, parseBody, parsePagination } from "@/lib/api-helpers";
@@ -73,24 +73,8 @@ export async function GET(request: NextRequest) {
         mentorFilter.states = { $in: allowedStates };
       }
     } else if (session?.user?.role === UserRole.ME_OFFICER) {
-      const meOfficer = await MEOfficer.findOne({ authId: session.user.id }).lean();
-      if (!meOfficer) return jsonError("M&E officer record not found", 404);
-
-      const allowedStates = (meOfficer.states || []).map((s: string) => s.toUpperCase().trim()).filter(Boolean);
-      if (!allowedStates.length) {
-        return jsonOk({
-          data: [],
-          pagination: { page, limit, total: 0, totalPages: 0 },
-        });
-      }
-
-      if (requestedStates.length) {
-        const allowedSet = new Set(allowedStates);
-        const intersection = requestedStates.filter((s) => allowedSet.has(s));
-        mentorFilter.states = { $in: intersection };
-      } else {
-        mentorFilter.states = { $in: allowedStates };
-      }
+      // ME officers see all mentors (no zone restriction)
+      if (requestedStates.length) mentorFilter.states = { $in: requestedStates };
     } else {
       if (requestedStates.length) mentorFilter.states = { $in: requestedStates };
     }

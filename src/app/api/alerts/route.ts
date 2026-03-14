@@ -3,7 +3,7 @@
    ────────────────────────────────────────── */
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import { Alert, Coordinator, DeskOfficer, MEOfficer, Mentor } from "@/models";
+import { Alert, Coordinator, DeskOfficer, Mentor } from "@/models";
 import { UserRole } from "@/lib/constants";
 import { requireRole } from "@/lib/auth-guard";
 import { jsonOk, parsePagination } from "@/lib/api-helpers";
@@ -38,13 +38,6 @@ export async function GET(request: NextRequest) {
     const deskOfficerDoc = await DeskOfficer.findOne({ authId: session!.user.id });
     if (deskOfficerDoc && deskOfficerDoc.states && deskOfficerDoc.states.length > 0) {
       filter.state = { $in: deskOfficerDoc.states };
-    } else {
-      return jsonOk({ data: [], pagination: { page, limit, total: 0, totalPages: 0 } });
-    }
-  } else if (session!.user.role === UserRole.ME_OFFICER) {
-    const meOfficerDoc = await MEOfficer.findOne({ authId: session!.user.id });
-    if (meOfficerDoc && meOfficerDoc.states && meOfficerDoc.states.length > 0) {
-      filter.state = { $in: meOfficerDoc.states };
     } else {
       return jsonOk({ data: [], pagination: { page, limit, total: 0, totalPages: 0 } });
     }

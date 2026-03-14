@@ -48,7 +48,6 @@ export async function GET(request: NextRequest) {
         const md = meOfficerDetailsList.find(m => m.authId.toString() === u._id.toString());
         return {
             ...u,
-            states: md?.states || [],
             meOfficerId: md?._id,
         };
     });
@@ -68,7 +67,6 @@ interface CreateMEOfficerBody {
     email: string;
     password: string;
     phone?: string;
-    states?: string[];
 }
 
 export async function POST(request: NextRequest) {
@@ -98,7 +96,6 @@ export async function POST(request: NextRequest) {
 
     await MEOfficer.create({
         authId: user._id,
-        states: body.states ? body.states.map((st: string) => st.toUpperCase().trim()) : [],
     });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

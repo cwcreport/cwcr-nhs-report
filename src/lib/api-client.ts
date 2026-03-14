@@ -388,7 +388,6 @@ export interface MEOfficer {
   phone?: string;
   role: string;
   active: boolean;
-  states?: string[];
   createdAt: string;
 }
 
@@ -397,7 +396,6 @@ export interface CreateMEOfficerInput {
   email: string;
   password: string;
   phone?: string;
-  states?: string[];
 }
 
 export interface Fellow {

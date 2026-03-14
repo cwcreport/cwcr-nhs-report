@@ -3,7 +3,7 @@
    ────────────────────────────────────────── */
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import { WeeklyReport, User, Alert, WeeklyRollup, Mentor, Coordinator, DeskOfficer, MEOfficer } from "@/models";
+import { WeeklyReport, User, Alert, WeeklyRollup, Mentor, Coordinator, DeskOfficer } from "@/models";
 import mongoose from "mongoose";
 import { UserRole, AlertStatus } from "@/lib/constants";
 import { requireAuth } from "@/lib/auth-guard";
@@ -44,16 +44,6 @@ export async function GET(_request: NextRequest) {
         mentorAuthIds = [];
         mentorDocIds = [];
       }
-    } else if (user.role === UserRole.ME_OFFICER) {
-      const meOfficer = await MEOfficer.findOne({ authId: user.id }).lean();
-      if (meOfficer && meOfficer.states && meOfficer.states.length > 0) {
-        const mentors = await Mentor.find({ states: { $in: meOfficer.states } }).lean();
-        mentorAuthIds = mentors.map(m => m.authId.toString());
-        mentorDocIds = mentors.map(m => m._id.toString());
-      } else {
-        mentorAuthIds = [];
-        mentorDocIds = [];
-      }
     }
 
     const baseMentorFilter: any = { role: UserRole.MENTOR };
@@ -68,7 +58,7 @@ export async function GET(_request: NextRequest) {
     // Note: Alert schema uses User ID for mentor field.
     if (mentorAuthIds) alertFilter.mentor = { $in: mentorAuthIds };
 
-    const isZoneScoped = user.role === UserRole.COORDINATOR || user.role === UserRole.ZONAL_DESK_OFFICER || user.role === UserRole.ME_OFFICER;
+    const isZoneScoped = user.role === UserRole.COORDINATOR || user.role === UserRole.ZONAL_DESK_OFFICER;
 
     const [
       totalMentors,

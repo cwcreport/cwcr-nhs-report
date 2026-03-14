@@ -6,7 +6,6 @@ import { WeeklyReport } from "@/models/WeeklyReport";
 import { Coordinator } from "@/models/Coordinator";
 import { Mentor } from "@/models/Mentor";
 import { DeskOfficer } from "@/models/DeskOfficer";
-import { MEOfficer } from "@/models/MEOfficer";
 import { UserRole } from "@/lib/constants";
 import { startOfMonth, endOfMonth, parseISO } from "date-fns";
 
@@ -48,19 +47,6 @@ export async function GET(request: Request) {
             const deskOfficerDoc = await DeskOfficer.findOne({ authId: session.user.id });
             if (deskOfficerDoc && deskOfficerDoc.states && deskOfficerDoc.states.length > 0) {
                 filter.state = { $in: deskOfficerDoc.states };
-            } else {
-                return NextResponse.json({
-                    data: [],
-                    pagination: { page, limit, total: 0, totalPages: 0 },
-                });
-            }
-        }
-
-        // If M&E Officer, see monthly reports from their states
-        if (session.user.role === UserRole.ME_OFFICER) {
-            const meOfficerDoc = await MEOfficer.findOne({ authId: session.user.id });
-            if (meOfficerDoc && meOfficerDoc.states && meOfficerDoc.states.length > 0) {
-                filter.state = { $in: meOfficerDoc.states };
             } else {
                 return NextResponse.json({
                     data: [],
