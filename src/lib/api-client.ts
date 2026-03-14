@@ -593,7 +593,9 @@ export interface DashboardData {
 
 export interface MonthlyReport {
   _id: string;
-  coordinator: { _id: string; name: string; email: string; state: string };
+  type: "mentor" | "zonal";
+  coordinator?: { _id: string; name: string; email: string; state: string };
+  mentor?: { _id: string; name: string; email: string; state?: string };
   state: string;
   month: string;
   summaryText: string;

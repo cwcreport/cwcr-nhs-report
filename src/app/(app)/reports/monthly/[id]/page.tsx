@@ -1,5 +1,6 @@
 /* ──────────────────────────────────────────
    Monthly Report Detail Page
+   Supports Mentor and Zonal report types
    ────────────────────────────────────────── */
 "use client";
 
@@ -10,7 +11,7 @@ import { Header } from "@/components/layout";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { api, type MonthlyReport, type Report } from "@/lib/api-client";
-import { ChevronLeft, FileDown, Eye, Calendar, MapPin, User, Download } from "lucide-react";
+import { ChevronLeft, FileDown, Eye, Calendar, User } from "lucide-react";
 import Link from "next/link";
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
@@ -61,7 +62,9 @@ export default function MonthlyReportDetailPage() {
             const pdfHeight = (img.naturalHeight * pdfWidth) / img.naturalWidth;
 
             pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`Monthly_Report_${report.state}_${report.month}.pdf`);
+
+            const typeLabel = report.type === "zonal" ? "Zonal" : "Mentor";
+            pdf.save(`${typeLabel}_Monthly_Report_${report.state}_${report.month}.pdf`);
         } catch (err) {
             console.error("Failed to generate PDF", err);
             alert("Failed to export PDF.");
@@ -79,6 +82,11 @@ export default function MonthlyReportDetailPage() {
     }
 
     const displayMonth = format(parseISO(`${report.month}-01`), "MMMM yyyy");
+    const isZonal = report.type === "zonal";
+    const authorName = isZonal
+        ? (report.coordinator as any)?.authId?.name || report.coordinator?.name || "Unknown Coordinator"
+        : (report.mentor as any)?.authId?.name || report.mentor?.name || "Unknown Mentor";
+    const authorRole = isZonal ? "Zonal Coordinator" : "Mentor";
 
     return (
         <>
@@ -94,20 +102,25 @@ export default function MonthlyReportDetailPage() {
                 </Button>
             </div>
 
-            <Header title={`Monthly Summary: ${report.state}`} />
+            <Header title={isZonal ? `Zonal Monthly Summary: ${report.state}` : `Monthly Summary: ${report.state}`} />
 
             {/* The container that gets printed to PDF */}
             <div ref={contentRef} className="p-6 max-w-4xl space-y-8 bg-gray-50" style={{ padding: '2rem' }}>
 
                 <Card className="border-none shadow-sm">
-                    <CardHeader className="bg-green-700 text-white rounded-t-xl pb-6">
+                    <CardHeader className={`text-white rounded-t-xl pb-6 ${isZonal ? "bg-blue-700" : "bg-green-700"}`}>
                         <div className="flex justify-between items-start">
                             <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${isZonal ? "bg-blue-200 text-blue-900" : "bg-green-200 text-green-900"}`}>
+                                        {isZonal ? "Zonal Report" : "Mentor Report"}
+                                    </span>
+                                </div>
                                 <CardTitle className="text-2xl mb-1">{displayMonth} Overview</CardTitle>
-                                <p className="text-green-100 font-medium">State Coordinator: {(report.coordinator as any)?.authId?.name || report.coordinator?.name || "Unknown Coordinator"}</p>
+                                <p className={`font-medium ${isZonal ? "text-blue-100" : "text-green-100"}`}>{authorRole}: {authorName}</p>
                             </div>
                             <div className="text-right">
-                                <p className="text-xs uppercase tracking-wider text-green-200 font-semibold mb-1">Total Reports Aggregated</p>
+                                <p className={`text-xs uppercase tracking-wider font-semibold mb-1 ${isZonal ? "text-blue-200" : "text-green-200"}`}>Total Reports Aggregated</p>
                                 <p className="text-3xl font-bold">{report.weeklyReports.length}</p>
                             </div>
                         </div>
@@ -169,7 +182,7 @@ export default function MonthlyReportDetailPage() {
 
                         {report.weeklyReports.length === 0 && (
                             <div className="text-center p-8 bg-white rounded-xl border border-dashed border-gray-300 text-gray-500">
-                                No weekly reports were found for this month and state.
+                                No weekly reports were found for this month.
                             </div>
                         )}
                     </div>
