@@ -39,7 +39,7 @@ export default function MentorDetailsPage({
     const [changeEmailSuccess, setChangeEmailSuccess] = useState("");
 
     const [editOpen, setEditOpen] = useState(false);
-    const [editForm, setEditForm] = useState({ name: "", states: [] as string[], lgas: [] as string[] });
+    const [editForm, setEditForm] = useState({ name: "", phone: "", states: [] as string[], lgas: [] as string[] });
     const [saving, setSaving] = useState(false);
     const [editError, setEditError] = useState("");
     const [editSuccess, setEditSuccess] = useState("");
@@ -58,12 +58,12 @@ export default function MentorDetailsPage({
     }, [id]);
 
     useEffect(() => {
-        if (user?.role === "admin" || user?.role === "coordinator" || user?.role === "me_officer" || user?.role === "team_research_lead") {
+        if (user?.role === "admin" || user?.role === "coordinator" || user?.role === "zonal_desk_officer" || user?.role === "me_officer" || user?.role === "team_research_lead") {
             fetchMentor();
         }
     }, [fetchMentor, user]);
 
-    if (user?.role !== "admin" && user?.role !== "coordinator" && user?.role !== "me_officer" && user?.role !== "team_research_lead") {
+    if (user?.role !== "admin" && user?.role !== "coordinator" && user?.role !== "zonal_desk_officer" && user?.role !== "me_officer" && user?.role !== "team_research_lead") {
         return (
             <div className="p-6">
                 <p className="text-red-600">You are not authorized to view this page.</p>
@@ -120,6 +120,7 @@ export default function MentorDetailsPage({
         if (mentor) {
             setEditForm({
                 name: mentor.name,
+                phone: mentor.phone || "",
                 states: mentor.states || [],
                 lgas: mentor.lgas || [],
             });
@@ -141,6 +142,7 @@ export default function MentorDetailsPage({
         try {
             await api.mentors.update(id, {
                 name: editForm.name.trim(),
+                phone: editForm.phone.trim(),
                 states: editForm.states,
                 lgas: editForm.lgas,
             });
@@ -208,19 +210,19 @@ export default function MentorDetailsPage({
                             </CardContent>
                         </Card>
 
-                        {(user?.role === "admin" || user?.role === "coordinator") && (
+                        {(user?.role === "admin" || user?.role === "coordinator" || user?.role === "zonal_desk_officer") && (
                         <Card>
                             <CardHeader>
                                 <CardTitle>Actions</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                {user?.role === "admin" && (
+                                {(user?.role === "admin" || user?.role === "coordinator" || user?.role === "zonal_desk_officer") && (
                                     <div>
                                         <Button onClick={openEditModal} variant="secondary" className="w-full justify-start">
                                             <Pencil className="h-4 w-4 mr-2" /> Edit Profile
                                         </Button>
                                         <p className="text-xs text-gray-500 mt-2">
-                                            Update the mentor&apos;s name, assigned states, and LGAs.
+                                            Update the mentor&apos;s name, phone, assigned states, and LGAs.
                                         </p>
                                     </div>
                                 )}
@@ -368,7 +370,7 @@ export default function MentorDetailsPage({
                         <form onSubmit={handleEditProfile}>
                             <div className="p-6 space-y-4">
                                 <h2 className="text-lg font-semibold">Edit Mentor Profile</h2>
-                                <p className="text-sm text-gray-600">Update the mentor&apos;s name, states, and LGAs.</p>
+                                <p className="text-sm text-gray-600">Update the mentor&apos;s name, phone, states, and LGAs.</p>
 
                                 {editError && <p className="text-sm text-red-600 bg-red-50 p-2 rounded">{editError}</p>}
                                 {editSuccess && <p className="text-sm text-green-700 bg-green-50 p-2 rounded">{editSuccess}</p>}
@@ -379,6 +381,13 @@ export default function MentorDetailsPage({
                                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                                     required
                                     autoFocus
+                                />
+
+                                <Input
+                                    label="Phone"
+                                    type="tel"
+                                    value={editForm.phone}
+                                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                                 />
 
                                 <LocationSelector
