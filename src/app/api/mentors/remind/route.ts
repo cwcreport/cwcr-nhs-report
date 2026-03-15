@@ -9,7 +9,7 @@ import { User, WeeklyReport, Mentor, Coordinator } from "@/models";
 import { UserRole } from "@/lib/constants";
 import { requireRole } from "@/lib/auth-guard";
 import { jsonOk, jsonError } from "@/lib/api-helpers";
-import { sendMail } from "@/lib/mailer";
+import { sendMailWithRetry, delay } from "@/lib/mailer";
 import { reminderEmailTemplate } from "@/lib/email-templates";
 import { currentWeekKey } from "@/lib/date-helpers";
 import { env } from "@/lib/env";
@@ -62,13 +62,24 @@ export async function POST() {
   let sent = 0;
   const errors: string[] = [];
 
-  for (const mentor of mentorsToRemind) {
+  const BATCH_SIZE = 20;
+  const INTER_EMAIL_DELAY_MS = 1000;  // 1 s between each send
+  const INTER_BATCH_DELAY_MS = 5000; // 5 s between batches
+
+  for (let i = 0; i < mentorsToRemind.length; i++) {
+    const mentor = mentorsToRemind[i];
     try {
       const { subject, text, html } = reminderEmailTemplate(mentor.name, weekKey, appUrl);
-      await sendMail({ to: mentor.email, subject, text, html });
+      await sendMailWithRetry({ to: mentor.email, subject, text, html });
       sent++;
     } catch (err) {
       errors.push(`${mentor.email}: ${(err as Error).message}`);
+    }
+
+    const isLastInBatch = (i + 1) % BATCH_SIZE === 0;
+    const isLast = i === mentorsToRemind.length - 1;
+    if (!isLast) {
+      await delay(isLastInBatch ? INTER_BATCH_DELAY_MS : INTER_EMAIL_DELAY_MS);
     }
   }
 

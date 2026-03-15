@@ -43,15 +43,17 @@ async function handle(request: NextRequest) {
   const { subject, text, html } = weeklyDigestTemplate(digestData);
   const recipients = env.DIGEST_RECIPIENT_EMAILS();
 
+  // Send a single email with all recipients as BCC — one SMTP call, no burst.
   let sent = 0;
   const errors: string[] = [];
 
-  for (const email of recipients) {
+  if (recipients.length > 0) {
     try {
-      await sendMail({ to: email, subject, text, html });
-      sent++;
+      // Use the first address as the nominal "to" and BCC the rest for privacy.
+      await sendMail({ to: recipients[0], bcc: recipients.slice(1), subject, text, html });
+      sent = recipients.length;
     } catch (err) {
-      errors.push(`${email}: ${(err as Error).message}`);
+      errors.push((err as Error).message);
     }
   }
 

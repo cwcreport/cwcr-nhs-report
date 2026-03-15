@@ -8,7 +8,7 @@ import { User, Mentor, Coordinator } from "@/models";
 import { UserRole } from "@/lib/constants";
 import { requireRole } from "@/lib/auth-guard";
 import { jsonOk, jsonError, jsonCreated, parseBody } from "@/lib/api-helpers";
-import { sendMail } from "@/lib/mailer";
+import { sendMailWithRetry, delay } from "@/lib/mailer";
 import { newMentorEmailTemplate } from "@/lib/email-templates";
 import { env } from "@/lib/env";
 
@@ -74,7 +74,12 @@ export async function POST(request: NextRequest) {
             errors: [] as string[],
         };
 
-        for (const mentorInput of body.mentors) {
+        const BATCH_SIZE = 20;
+        const INTER_EMAIL_DELAY_MS = 1000;  // 1 s between each send
+        const INTER_BATCH_DELAY_MS = 5000; // 5 s between batches
+
+        for (let idx = 0; idx < body.mentors.length; idx++) {
+            const mentorInput = body.mentors[idx];
             try {
                 const email = mentorInput.email?.toLowerCase().trim();
                 if (!email) {
@@ -123,7 +128,7 @@ export async function POST(request: NextRequest) {
                     env.NEXTAUTH_URL()
                 );
 
-                await sendMail({
+                await sendMailWithRetry({
                     to: email,
                     subject: emailContent.subject,
                     text: emailContent.text,
@@ -131,6 +136,13 @@ export async function POST(request: NextRequest) {
                 });
 
                 results.successful++;
+
+                // Rate-limit sends: 1 s between emails, 5 s between every 20th
+                const isLastInBatch = (idx + 1) % BATCH_SIZE === 0;
+                const isLast = idx === body.mentors.length - 1;
+                if (!isLast) {
+                    await delay(isLastInBatch ? INTER_BATCH_DELAY_MS : INTER_EMAIL_DELAY_MS);
+                }
             } catch (err) {
                 results.failed++;
                 results.errors.push((err as Error).message);
