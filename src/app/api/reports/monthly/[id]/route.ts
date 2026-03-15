@@ -59,10 +59,9 @@ export async function GET(
             if (!mentorDoc) {
                 return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
             }
-            // Mentors can see their own mentor reports and their coordinator's zonal reports
+            // Mentors can only see their own mentor reports
             const isMentorReport = report.type === "mentor" && (report as any).mentor?._id?.toString() === mentorDoc._id.toString();
-            const isCoordZonalReport = report.type === "zonal" && (report as any).coordinator?._id?.toString() === mentorDoc.coordinator?.toString();
-            if (!isMentorReport && !isCoordZonalReport) {
+            if (!isMentorReport) {
                 return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
             }
         }

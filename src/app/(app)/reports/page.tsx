@@ -15,7 +15,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { api, type Report } from "@/lib/api-client";
 import { STATES, UserRole } from "@/lib/constants";
 import { format } from "date-fns";
-import { Plus, Eye, ChevronLeft, ChevronRight, FileDown, Download } from "lucide-react";
+import { Plus, Eye, ChevronLeft, ChevronRight, FileDown, Download, Trash2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { exportToCSV } from "@/lib/export";
 import { weekRangeLabelFromDate } from "@/lib/date-helpers";
@@ -29,6 +29,17 @@ export default function ReportsListPage() {
   const { data: session } = useSession();
   const isMentor = session?.user?.role === UserRole.MENTOR;
   const userRole = session?.user?.role;
+  const canDelete = userRole === UserRole.ADMIN || userRole === UserRole.COORDINATOR;
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this weekly report? This action cannot be undone.")) return;
+    try {
+      await api.reports.delete(id);
+      fetchReports();
+    } catch (err: any) {
+      alert(`Failed to delete: ${err.message}`);
+    }
+  };
 
   const hasAssignedStates =
     userRole === UserRole.MENTOR ||
@@ -195,6 +206,16 @@ export default function ReportsListPage() {
                       <PDFDownloadButton report={report} size="icon" variant="ghost" aria-label="Download PDF">
                         <FileDown className="h-4 w-4" />
                       </PDFDownloadButton>
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Delete Report"
+                          onClick={() => handleDelete(report._id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 ))

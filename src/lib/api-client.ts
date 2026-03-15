@@ -200,6 +200,8 @@ export const api = {
       request<Report>("/api/reports", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Report>) =>
       request<Report>(`/api/reports/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    delete: (id: string) =>
+      request<{ message: string }>(`/api/reports/${id}`, { method: "DELETE" }),
 
     comments: {
       list: (reportId: string) =>

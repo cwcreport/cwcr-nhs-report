@@ -39,11 +39,9 @@ export async function GET(request: Request) {
         if (session.user.role === UserRole.MENTOR) {
             const mentorDoc = await Mentor.findOne({ authId: session.user.id });
             if (mentorDoc) {
-                // Mentors see their own mentor reports + their coordinator's zonal reports
-                filter.$or = [
-                    { type: "mentor", mentor: mentorDoc._id },
-                    { type: "zonal", coordinator: mentorDoc.coordinator },
-                ];
+                // Mentors can only see their own mentor reports
+                filter.type = "mentor";
+                filter.mentor = mentorDoc._id;
             }
         }
 

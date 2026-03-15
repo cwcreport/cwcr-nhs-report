@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { api, type Report, type ReportComment } from "@/lib/api-client";
 import { format } from "date-fns";
-import { ArrowLeft, FileDown, Pencil, Send, MessageSquare } from "lucide-react";
+import { ArrowLeft, FileDown, Pencil, Send, MessageSquare, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { UserRole } from "@/lib/constants";
 import { isoWeekKey, weekRangeLabelFromDate } from "@/lib/date-helpers";
@@ -39,6 +39,21 @@ export default function ReportDetailPage() {
     (session.user.role === UserRole.COORDINATOR ||
       session.user.role === UserRole.MENTOR ||
       session.user.role === UserRole.ADMIN);
+
+  const canDelete =
+    session?.user &&
+    (session.user.role === UserRole.ADMIN ||
+      session.user.role === UserRole.COORDINATOR);
+
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete this weekly report? This action cannot be undone.")) return;
+    try {
+      await api.reports.delete(id);
+      router.push("/reports");
+    } catch (err: any) {
+      alert(`Failed to delete: ${err.message}`);
+    }
+  };
 
   const loadComments = useCallback(
     (reportId: string) => {
@@ -111,6 +126,11 @@ export default function ReportDetailPage() {
                 </Button>
               </Link>
             )}
+          {canDelete && (
+            <Button variant="destructive" size="sm" onClick={handleDelete}>
+              <Trash2 className="h-4 w-4 mr-1" /> Delete
+            </Button>
+          )}
           <Badge>{report.status}</Badge>
         </div>
 
