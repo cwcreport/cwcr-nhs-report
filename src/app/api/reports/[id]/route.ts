@@ -133,3 +133,41 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   void logActivity({ session, action: "UPDATE_REPORT", targetType: "Report", targetId: id, targetName: report.weekKey });
   return jsonOk(report);
 }
+
+// DELETE /api/reports/:id — admin or coordinator (own mentors) can delete weekly report
+export async function DELETE(_request: NextRequest, { params }: Params) {
+  const { session, error } = await requireAuth();
+  if (error) return error;
+
+  const userRole = session!.user.role as UserRole;
+
+  if (userRole !== UserRole.ADMIN && userRole !== UserRole.COORDINATOR) {
+    return jsonError("Forbidden", 403);
+  }
+
+  const { id } = await params;
+  await connectDB();
+
+  const report = await WeeklyReport.findById(id);
+  if (!report) return jsonError("Report not found", 404);
+
+  // Coordinators can only delete reports from mentors assigned to them
+  if (userRole === UserRole.COORDINATOR) {
+    const coordDoc = await Coordinator.findOne({ authId: session!.user.id });
+    if (!coordDoc) return jsonError("Forbidden", 403);
+
+    const mentorDoc = await Mentor.findById(report.mentor);
+    if (!mentorDoc || mentorDoc.coordinator.toString() !== coordDoc._id.toString()) {
+      return jsonError("Forbidden — this mentor is not assigned to you.", 403);
+    }
+  }
+
+  const weekKey = report.weekKey;
+  await WeeklyReport.findByIdAndDelete(id);
+
+  // Rebuild rollup after deletion
+  await rebuildRollupForWeek(weekKey);
+
+  void logActivity({ session, action: "DELETE_REPORT", targetType: "Report", targetId: id, targetName: weekKey });
+  return jsonOk({ message: "Weekly report deleted" });
+}

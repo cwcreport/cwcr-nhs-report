@@ -23,7 +23,7 @@ export default function MonthlyReportsPage() {
     const { data: session } = useSession();
     const userRole = session?.user?.role;
     const canCreate = userRole === UserRole.MENTOR || userRole === UserRole.COORDINATOR;
-    const canDelete = userRole === UserRole.COORDINATOR;
+    const canDelete = userRole === UserRole.COORDINATOR || userRole === UserRole.ADMIN;
 
     const handleDelete = async (id: string) => {
         if (!window.confirm("Are you sure you want to delete this monthly report? This action cannot be undone.")) return;

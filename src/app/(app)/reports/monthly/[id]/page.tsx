@@ -28,7 +28,7 @@ export default function MonthlyReportDetailPage() {
     const [exporting, setExporting] = useState(false);
 
     const { data: session } = useSession();
-    const canDelete = session?.user?.role === UserRole.COORDINATOR;
+    const canDelete = session?.user?.role === UserRole.COORDINATOR || session?.user?.role === UserRole.ADMIN;
 
     const contentRef = useRef<HTMLDivElement>(null);
 
