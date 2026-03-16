@@ -51,7 +51,7 @@ const NAV_ITEMS = [
     label: "Fellows",
     href: "/fellows",
     icon: Users,
-    roles: [UserRole.ADMIN, UserRole.MENTOR, UserRole.ME_OFFICER, UserRole.ZONAL_DESK_OFFICER, UserRole.TEAM_RESEARCH_LEAD],
+    roles: [UserRole.ADMIN, UserRole.MENTOR, UserRole.COORDINATOR, UserRole.ME_OFFICER, UserRole.ZONAL_DESK_OFFICER, UserRole.TEAM_RESEARCH_LEAD],
   },
   {
     label: "Mentors Management",
