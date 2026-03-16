@@ -2,7 +2,7 @@
    Single source of truth: Constants & Enums
    ────────────────────────────────────────── */
 // ─── App Constants ──────────────────────────
-export const APP_NAME = "CWCR-NHF Mentors Reporting";
+export const APP_NAME = "CWCR-NHF Mentor Reporting Platform";
 export const APP_LOGO_URL = "/logo.png";
 
 // ─── User Roles ─────────────────────────────
