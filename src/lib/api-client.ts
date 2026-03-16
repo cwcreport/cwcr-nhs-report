@@ -503,7 +503,7 @@ export interface Report {
   weekNumber: number;
   weekKey: string;
   coverNote?: string;
-  fellows: { name: string; lga: string }[];
+  fellows: { name: string; lga: string; profession?: string }[];
   sessions: (MentorshipSessionInput & { _id?: string })[];
   sessionsCount: number;
   menteesCheckedIn: number;
@@ -538,7 +538,7 @@ export interface CreateReportInput {
   weekEnding: string;
   weekNumber?: number;
   coverNote?: string;
-  fellows?: { name: string; lga: string }[];
+  fellows?: { name: string; lga: string; profession?: string }[];
   sessions?: MentorshipSessionInput[];
   sessionsCount: number;
   menteesCheckedIn: number;

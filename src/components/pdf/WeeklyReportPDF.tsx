@@ -223,7 +223,7 @@ export function WeeklyReportPDF({ report }: ReportPDFProps) {
           <View style={{ marginBottom: 12 }}>
             {report.fellows.map((f, i) => (
               <Text key={i} style={s.fellowItem}>
-                {i + 1}. {f.name}{f.lga ? `, ${f.lga} LGA` : ""}
+                {i + 1}. {f.name}{f.profession ? ` (${f.profession})` : ""}{f.lga ? `, ${f.lga} LGA` : ""}
               </Text>
             ))}
           </View>

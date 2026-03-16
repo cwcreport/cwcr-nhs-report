@@ -40,7 +40,7 @@ export default function NewReportPage() {
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
 
   // Assigned Fellows
-  const [assignedFellows, setAssignedFellows] = useState<{ id: string; name: string; lga: string }[]>([]);
+  const [assignedFellows, setAssignedFellows] = useState<{ id: string; name: string; lga: string; profession?: string }[]>([]);
   const [loadingFellows, setLoadingFellows] = useState(true);
 
   // Mentor's assigned LGAs
@@ -59,7 +59,8 @@ export default function NewReportPage() {
           setAssignedFellows(fellowsJson.data.map((f: any) => ({
             id: f._id,
             name: f.name,
-            lga: f.lga
+            lga: f.lga,
+            profession: f.profession,
           })));
         }
         const profileJson = await profileRes.json();
@@ -81,7 +82,7 @@ export default function NewReportPage() {
   const [coverNote, setCoverNote] = useState("");
 
   // Fellows list
-  const [fellows, setFellows] = useState<{ name: string; lga: string }[]>([
+  const [fellows, setFellows] = useState<{ name: string; lga: string; profession?: string }[]>([
     { name: "", lga: "" },
   ]);
 
@@ -102,10 +103,10 @@ export default function NewReportPage() {
   const [evidenceUrls, setEvidenceUrls] = useState<string[]>([]);
 
   // ─── Fellow helpers ──────────────────
-  const updateFellow = (idx: number, field: "name" | "lga", value: string) => {
+  const updateFellow = (idx: number, field: "name" | "lga" | "profession", value: string) => {
     setFellows((prev) => prev.map((f, i) => (i === idx ? { ...f, [field]: value } : f)));
   };
-  const addFellow = () => setFellows((prev) => [...prev, { name: "", lga: "" }]);
+  const addFellow = () => setFellows((prev) => [...prev, { name: "", lga: "", profession: "" }]);
   const removeFellow = (idx: number) =>
     setFellows((prev) => prev.filter((_, i) => i !== idx));
 
@@ -327,7 +328,10 @@ export default function NewReportPage() {
                         onChange={(e) => {
                           updateFellow(i, "name", e.target.value);
                           const matchedFellow = assignedFellows.find(af => af.name === e.target.value);
-                          if (matchedFellow) updateFellow(i, "lga", matchedFellow.lga);
+                          if (matchedFellow) {
+                            updateFellow(i, "lga", matchedFellow.lga);
+                            updateFellow(i, "profession", matchedFellow.profession ?? "");
+                          }
                         }}
                         options={[
                           { label: "Select Fellow", value: "" },
@@ -345,6 +349,14 @@ export default function NewReportPage() {
                         { label: "Select LGA", value: "" },
                         ...mentorLGAs.map((l) => ({ label: l, value: l })),
                       ]}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Input
+                      label={i === 0 ? "Qualification / Profession" : undefined}
+                      value={f.profession ?? ""}
+                      onChange={(e) => updateFellow(i, "profession", e.target.value)}
+                      placeholder="e.g. Nurse, Doctor"
                     />
                   </div>
                   {fellows.length > 1 && (
