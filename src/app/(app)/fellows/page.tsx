@@ -28,7 +28,7 @@ function AddFellowModal({
     onAdded: () => void;
     mentorLGAs: string[];
 }) {
-    const [form, setForm] = useState({ name: "", gender: "Male", lga: "", profession: "" });
+    const [form, setForm] = useState({ name: "", gender: "Male", lga: "", qualification: "" });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
@@ -42,7 +42,7 @@ function AddFellowModal({
             await api.fellows.create(form);
             onAdded();
             onClose();
-            setForm({ name: "", gender: "Male", lga: "", profession: "" });
+            setForm({ name: "", gender: "Male", lga: "", qualification: "" });
         } catch (err) {
             setError((err as Error).message);
         } finally {
@@ -85,9 +85,9 @@ function AddFellowModal({
                             required
                         />
                         <Input
-                            label="Profession"
-                            value={form.profession}
-                            onChange={(e) => setForm({ ...form, profession: e.target.value })}
+                            label="Qualification"
+                            value={form.qualification}
+                            onChange={(e) => setForm({ ...form, qualification: e.target.value })}
                         />
                     </div>
                     <div className="flex justify-end gap-3 px-6 pb-6">
@@ -104,7 +104,7 @@ function AddFellowModal({
     );
 }
 
-/* ─── Edit Fellow Modal ─────────────────── */
+/* ─── Edit Fellow Modal ─────────────────────────────────────── */
 function EditFellowModal({
     open,
     onClose,
@@ -118,7 +118,7 @@ function EditFellowModal({
     fellow: Fellow | null;
     mentorLGAs: string[];
 }) {
-    const [form, setForm] = useState({ name: "", gender: "Male", lga: "", profession: "" });
+    const [form, setForm] = useState({ name: "", gender: "Male", lga: "", qualification: "" });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
@@ -128,7 +128,7 @@ function EditFellowModal({
                 name: fellow.name,
                 gender: fellow.gender,
                 lga: fellow.lga,
-                profession: fellow.profession || "",
+                qualification: fellow.qualification || "",
             });
         }
     }, [fellow, open]);
@@ -185,9 +185,9 @@ function EditFellowModal({
                             required
                         />
                         <Input
-                            label="Profession"
-                            value={form.profession}
-                            onChange={(e) => setForm({ ...form, profession: e.target.value })}
+                            label="Qualification"
+                            value={form.qualification}
+                            onChange={(e) => setForm({ ...form, qualification: e.target.value })}
                         />
                     </div>
                     <div className="flex justify-end gap-3 px-6 pb-6">
@@ -378,7 +378,7 @@ export default function FellowsPage() {
                                         Name: f.name,
                                         Gender: f.gender,
                                         LGA: f.lga,
-                                        Profession: f.profession || "",
+                                        Profession: f.qualification || "",
                                     }));
                                     exportToCSV(data, role === UserRole.ADMIN || role === UserRole.ME_OFFICER ? "fellows" : "my-fellows");
                                 }}
@@ -419,7 +419,7 @@ export default function FellowsPage() {
                                 <th className="px-4 py-3 font-medium text-gray-600">Name</th>
                                 <th className="px-4 py-3 font-medium text-gray-600">Gender</th>
                                 <th className="px-4 py-3 font-medium text-gray-600">LGA</th>
-                                <th className="px-4 py-3 font-medium text-gray-600">Profession</th>
+                                <th className="px-4 py-3 font-medium text-gray-600">Qualification</th>
 
                                 {canWrite && (
                                 <th className="px-4 py-3 font-medium text-gray-600 text-right">Actions</th>
@@ -453,7 +453,7 @@ export default function FellowsPage() {
                                         <td className="px-4 py-3 font-medium">{f.name}</td>
                                         <td className="px-4 py-3 text-gray-600">{f.gender}</td>
                                         <td className="px-4 py-3 text-gray-600">{f.lga}</td>
-                                        <td className="px-4 py-3 text-gray-600">{f.profession || "—"}</td>
+                                        <td className="px-4 py-3 text-gray-600">{f.qualification || "—"}</td>
 
                                         {canWrite && (
                                         <td className="px-4 py-3 text-right space-x-2">

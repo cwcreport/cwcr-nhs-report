@@ -11,7 +11,7 @@ import { useSession } from "next-auth/react";
 import { Input } from "@/components/ui/Input";
 
 /* ─── CSV Columns ──────────────────────────── */
-const EXPECTED_HEADERS = ["Name", "State", "LGA", "Phone Number", "Gender", "Profession"];
+const EXPECTED_HEADERS = ["Name", "State", "LGA", "Phone Number", "Gender", "Qualification"];
 
 export default function BulkUploadFellowsPage() {
     const { data: session, status } = useSession();
@@ -90,10 +90,10 @@ export default function BulkUploadFellowsPage() {
                     const lga = row["LGA"] || row["lga"] || "";
                     const phone = row["Phone Number"] || row["phone"] || "";
                     const gender = row["Gender"] || row["gender"] || "";
-                    const profession = row["Profession"] || row["profession"] || "";
+                    const qualification = row["Qualification"] || row["qualification"] || row["Profession"] || row["profession"] || "";
 
                     if (name && lga) {
-                        parsedFellows.push({ name, state, lga, phone, gender, profession, mentorId: "self" });
+                        parsedFellows.push({ name, state, lga, phone, gender, qualification, mentorId: "self" });
                     }
                 }
 
@@ -234,7 +234,7 @@ export default function BulkUploadFellowsPage() {
                                     <th className="px-4 py-3 font-medium text-gray-600">State</th>
                                     <th className="px-4 py-3 font-medium text-gray-600">LGA</th>
                                     <th className="px-4 py-3 font-medium text-gray-600">Phone</th>
-                                    <th className="px-4 py-3 font-medium text-gray-600">Profession</th>
+                                    <th className="px-4 py-3 font-medium text-gray-600">Qualification</th>
                                     <th className="px-4 py-3 font-medium text-gray-600 text-right">Actions</th>
                                 </tr>
                             </thead>
@@ -278,8 +278,8 @@ export default function BulkUploadFellowsPage() {
                                         </td>
                                         <td className="px-4 py-2">
                                             <Input
-                                                value={f.profession || ""}
-                                                onChange={(e) => handleEditFellow(idx, "profession", e.target.value)}
+                                                value={f.qualification || ""}
+                                                onChange={(e) => handleEditFellow(idx, "qualification", e.target.value)}
                                                 className="h-8 w-28"
                                             />
                                         </td>

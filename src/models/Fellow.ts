@@ -9,7 +9,7 @@ export interface IFellow extends Document {
     name: string;
     gender: string;
     lga: string;
-    profession?: string;
+    qualification?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -20,7 +20,7 @@ const FellowSchema = new Schema<IFellow>(
         name: { type: String, required: true, trim: true },
         gender: { type: String, required: true, trim: true },
         lga: { type: String, required: true, trim: true, uppercase: true },
-        profession: { type: String, trim: true }
+        qualification: { type: String, trim: true }
     },
     { timestamps: true }
 );

@@ -36,7 +36,7 @@ export interface IWeeklyReport extends Document {
 
   /* ── Cover note fields ──────────────── */
   coverNote?: string; // optional intro paragraph
-  fellows: { name: string; lga: string; profession?: string }[]; // list of fellows & LGAs
+  fellows: { name: string; lga: string; qualification?: string }[]; // list of fellows & LGAs
 
   /* ── Individual session reports ─────── */
   sessions: IMentorshipSession[];
@@ -68,7 +68,7 @@ const FellowSchema = new Schema(
   {
     name: { type: String, required: true, trim: true },
     lga: { type: String, trim: true, default: "" },
-    profession: { type: String, trim: true },
+    qualification: { type: String, trim: true },
   },
   { _id: false }
 );
