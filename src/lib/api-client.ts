@@ -223,7 +223,19 @@ export const api = {
         request<MonthlyReport>("/api/reports/monthly", { method: "POST", body: JSON.stringify(data) }),
       delete: (id: string) =>
         request<{ message: string }>(`/api/reports/monthly/${id}`, { method: "DELETE" }),
-    }
+    },
+
+    fellowMonthly: {
+      list: (params?: URLSearchParams | Record<string, string>) =>
+        request<PaginatedResponse<FellowMonthlyReport>>(`/api/reports/fellow-monthly?${new URLSearchParams(params).toString()}`),
+      get: (id: string) => request<FellowMonthlyReport>(`/api/reports/fellow-monthly/${id}`),
+      create: (data: CreateFellowMonthlyReportInput) =>
+        request<FellowMonthlyReport>("/api/reports/fellow-monthly", { method: "POST", body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        request<{ success: boolean }>(`/api/reports/fellow-monthly/${id}`, { method: "DELETE" }),
+      prefill: (fellowId: string, month: string) =>
+        request<FellowMonthlyReportPrefill>(`/api/reports/fellow-monthly/prefill?fellowId=${fellowId}&month=${encodeURIComponent(month)}`),
+    },
   },
 
   alerts: {
@@ -621,6 +633,58 @@ export function monthlyReportAuthorName(r: MonthlyReport): string {
 export interface CreateMonthlyReportInput {
   month: string;
   summaryText: string;
+}
+
+export interface FellowMonthlyReport {
+  _id: string;
+  mentor: { _id: string; authId?: { name: string; email: string } };
+  fellow: { _id: string; name: string; lga: string; qualification?: string };
+  month: string;
+  fellowName: string;
+  fellowLGA: string;
+  fellowQualification?: string;
+  sessionsHeld: number;
+  sessionsAttended: number;
+  sessionsAbsent: number;
+  summaryLearning?: string;
+  summaryPhcVisits?: string;
+  summaryActivities?: string;
+  summaryGrowth?: string;
+  summaryImpact?: string;
+  challenges: string[];
+  recommendations: string[];
+  achievements?: string;
+  progressRating?: "Excellent" | "Good" | "Fair" | "Needs Improvement" | "";
+  weeklyReportIds: string[];
+  status: string;
+  createdAt: string;
+}
+
+export interface CreateFellowMonthlyReportInput {
+  fellow: string;
+  month: string;
+  sessionsHeld: number;
+  sessionsAttended: number;
+  sessionsAbsent: number;
+  summaryLearning?: string;
+  summaryPhcVisits?: string;
+  summaryActivities?: string;
+  summaryGrowth?: string;
+  summaryImpact?: string;
+  challenges: string[];
+  recommendations: string[];
+  achievements?: string;
+  progressRating?: string;
+  weeklyReportIds?: string[];
+}
+
+export interface FellowMonthlyReportPrefill {
+  fellow: { _id: string; name: string; lga: string; qualification?: string };
+  sessionsHeld: number;
+  sessionsAttended: number;
+  sessionsAbsent: number;
+  challenges: string[];
+  weeklyReportIds: string[];
 }
 
 export interface DocumentType {
