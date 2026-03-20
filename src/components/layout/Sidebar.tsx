@@ -45,7 +45,7 @@ const NAV_ITEMS = [
     label: "Monthly Report",
     href: "/reports/monthly",
     icon: FileText,
-    roles: [UserRole.ADMIN, UserRole.MENTOR, UserRole.COORDINATOR, UserRole.ZONAL_DESK_OFFICER, UserRole.ME_OFFICER, UserRole.TEAM_RESEARCH_LEAD],
+    roles: [UserRole.ADMIN, UserRole.COORDINATOR, UserRole.ZONAL_DESK_OFFICER, UserRole.ME_OFFICER, UserRole.TEAM_RESEARCH_LEAD],
   },
   {
     label: "Mentor Monthly Report",
