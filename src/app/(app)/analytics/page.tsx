@@ -247,25 +247,14 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               {byState.length ? (
-                <ResponsiveContainer width="100%" height={400}>
-                  <PieChart>
-                    <Pie
-                      data={byState}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={130}
-                      label={renderPieLabel}
-                      labelLine
-                    >
-                      {byState.map((_, idx) => (
-                        <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
-                      ))}
-                    </Pie>
+                <ResponsiveContainer width="100%" height={Math.max(400, byState.length * 28)}>
+                  <BarChart data={byState} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" fontSize={10} tickMargin={5} />
+                    <YAxis dataKey="name" type="category" width={100} fontSize={10} tickMargin={5} />
                     <Tooltip />
-                    <Legend wrapperStyle={{ fontSize: '11px' }} />
-                  </PieChart>
+                    <Bar dataKey="value" fill="#ea580c" name="Reports" radius={[0, 4, 4, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
               ) : (
                 <p className="text-gray-400 text-center py-12">No state data available yet.</p>
@@ -372,25 +361,14 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               {qualifications.length ? (
-                <ResponsiveContainer width="100%" height={350}>
-                  <PieChart>
-                    <Pie
-                      data={qualifications}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={120}
-                      label={renderPieLabel}
-                      labelLine
-                    >
-                      {qualifications.map((_, idx) => (
-                        <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
-                      ))}
-                    </Pie>
+                <ResponsiveContainer width="100%" height={Math.max(350, qualifications.length * 28)}>
+                  <BarChart data={qualifications} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" fontSize={10} tickMargin={5} />
+                    <YAxis dataKey="name" type="category" width={120} fontSize={10} tickMargin={5} />
                     <Tooltip />
-                    <Legend wrapperStyle={{ fontSize: '11px' }} />
-                  </PieChart>
+                    <Bar dataKey="value" fill="#7c3aed" name="Fellows" radius={[0, 4, 4, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
               ) : (
                 <p className="text-gray-400 text-center py-12">No qualification data available yet.</p>
