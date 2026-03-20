@@ -34,6 +34,10 @@ export const api = {
     get: () => request<DashboardData>("/api/dashboard"),
   },
 
+  analytics: {
+    get: () => request<AnalyticsData>("/api/analytics"),
+  },
+
   admins: {
     list: (params?: URLSearchParams | Record<string, string>) =>
       request<PaginatedResponse<Admin>>(`/api/admins?${new URLSearchParams(params).toString()}`),
@@ -742,4 +746,14 @@ export interface IntegrationLog {
   actorRole?: string;
   meta?: Record<string, unknown>;
   createdAt: string;
+}
+
+export interface AnalyticsData {
+  totalFellows: number;
+  totalMentors: number;
+  fellowsByState: { state: string; count: number }[];
+  fellowsByGender: { gender: string; count: number }[];
+  fellowsByStateGender: { state: string; total: number; [gender: string]: string | number }[];
+  mentorsByState: { state: string; count: number }[];
+  qualifications: { name: string; count: number }[];
 }

@@ -9,7 +9,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Download } from "lucide-react";
-import { api, type DashboardData } from "@/lib/api-client";
+import { api, type DashboardData, type AnalyticsData } from "@/lib/api-client";
 import { exportToCSV } from "@/lib/export";
 import { weekRangeLabelFromWeekKey, weekRangeFilenameCodeFromWeekKey } from "@/lib/date-helpers";
 import { jsPDF } from "jspdf";
@@ -34,18 +34,23 @@ import {
 const COLORS = [
   "#ea580c", "#2563eb", "#d97706", "#dc2626",
   "#7c3aed", "#0891b2", "#db2777", "#65a30d",
+  "#059669", "#6366f1", "#f59e0b", "#ef4444",
+  "#14b8a6", "#8b5cf6", "#f97316", "#06b6d4",
 ];
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<DashboardData | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [chartType, setChartType] = useState<"line" | "bar">("line");
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
-    api.dashboard
-      .get()
-      .then(setData)
+    Promise.all([api.dashboard.get(), api.analytics.get()])
+      .then(([dashData, anData]) => {
+        setData(dashData);
+        setAnalyticsData(anData);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -68,7 +73,6 @@ export default function AnalyticsPage() {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (img.naturalHeight * pdfWidth) / img.naturalWidth;
 
-      // Handle multi-page if content is taller than one page
       const pageHeight = pdf.internal.pageSize.getHeight();
       if (pdfHeight <= pageHeight) {
         pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
@@ -105,15 +109,15 @@ export default function AnalyticsPage() {
   const rollups = data.rollups ?? [];
   const rawByState = data.submissionsByState ?? [];
 
-  // Aggregate the submissionsByState (which may be per-state-per-week) into just per-state totals
+  // Aggregate the submissionsByState into per-state totals
   const stateMap: Record<string, number> = {};
   rawByState.forEach((s) => {
     const stateName = typeof s._id === "string" ? s._id : s._id?.state ?? "Unknown";
     stateMap[stateName] = (stateMap[stateName] || 0) + s.count;
   });
   const byState = Object.entries(stateMap)
-    .map(([_id, count]) => ({ _id, count }))
-    .sort((a, b) => b.count - a.count);
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
 
   // Prepare challenge aggregation from rollups
   const challengeMap: Record<string, number> = {};
@@ -126,6 +130,31 @@ export default function AnalyticsPage() {
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value)
     .slice(0, 8);
+
+  // Analytics data
+  const fellowsByState = analyticsData?.fellowsByState ?? [];
+  const fellowsByGender = analyticsData?.fellowsByGender?.map(g => ({ name: g.gender, value: g.count })) ?? [];
+  const mentorsByState = analyticsData?.mentorsByState ?? [];
+  const qualifications = analyticsData?.qualifications?.map(q => ({ name: q.name, value: q.count })) ?? [];
+
+  // Combined distribution by state for fellows & mentors
+  const allStates = new Set([
+    ...fellowsByState.map(f => f.state),
+    ...mentorsByState.map(m => m.state),
+  ]);
+  const distributionByState = Array.from(allStates)
+    .map(state => ({
+      state,
+      fellows: fellowsByState.find(f => f.state === state)?.count ?? 0,
+      mentors: mentorsByState.find(m => m.state === state)?.count ?? 0,
+    }))
+    .sort((a, b) => (b.fellows + b.mentors) - (a.fellows + a.mentors));
+
+  const renderPieLabel = (props: PieLabelRenderProps) => {
+    const name = String(props.name ?? "");
+    const pct = ((Number(props.percent) || 0) * 100).toFixed(0);
+    return `${name}: ${pct}%`;
+  };
 
   return (
     <>
@@ -202,22 +231,45 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        {/* Reports by State */}
+        {/* State Performance Summary (Pie) + Reports by State */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Reports by State</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>State Performance Summary</CardTitle>
+                <Button variant="outline" size="sm" onClick={() => {
+                  const exportData = byState.map(s => ({ State: s.name, Reports: s.value }));
+                  exportToCSV(exportData, "state-performance");
+                }}>
+                  <Download className="h-4 w-4 mr-1" /> Export CSV
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={byState} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" fontSize={10} tickMargin={5} />
-                  <YAxis dataKey="_id" type="category" width={80} fontSize={10} tickMargin={5} />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#ea580c" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {byState.length ? (
+                <ResponsiveContainer width="100%" height={400}>
+                  <PieChart>
+                    <Pie
+                      data={byState}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={130}
+                      label={renderPieLabel}
+                      labelLine
+                    >
+                      {byState.map((_, idx) => (
+                        <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-gray-400 text-center py-12">No state data available yet.</p>
+              )}
             </CardContent>
           </Card>
 
@@ -228,7 +280,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               {challengeData.length ? (
-                <ResponsiveContainer width="100%" height={350}>
+                <ResponsiveContainer width="100%" height={400}>
                   <PieChart>
                     <Pie
                       data={challengeData}
@@ -236,12 +288,8 @@ export default function AnalyticsPage() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius={120}
-                      label={(props: PieLabelRenderProps) => {
-                        const name = String(props.name ?? "");
-                        const pct = ((Number(props.percent) || 0) * 100).toFixed(0);
-                        return `${name}: ${pct}%`;
-                      }}
+                      outerRadius={130}
+                      label={renderPieLabel}
                       labelLine
                     >
                       {challengeData.map((_, idx) => (
@@ -260,6 +308,97 @@ export default function AnalyticsPage() {
           </Card>
         </div>
 
+        {/* Fellows & Mentors Distribution by State */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Fellows & Mentors Distribution by State</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {distributionByState.length ? (
+              <ResponsiveContainer width="100%" height={Math.max(350, distributionByState.length * 30)}>
+                <BarChart data={distributionByState} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" fontSize={10} tickMargin={5} />
+                  <YAxis dataKey="state" type="category" width={100} fontSize={10} tickMargin={5} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: '12px' }} />
+                  <Bar dataKey="fellows" fill="#ea580c" name="Fellows" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="mentors" fill="#2563eb" name="Mentors" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-gray-400 text-center py-12">No distribution data available yet.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Fellows by Gender + Fellow Qualifications */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Fellows by Gender</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {fellowsByGender.length ? (
+                <ResponsiveContainer width="100%" height={350}>
+                  <PieChart>
+                    <Pie
+                      data={fellowsByGender}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={120}
+                      label={renderPieLabel}
+                      labelLine
+                    >
+                      {fellowsByGender.map((_, idx) => (
+                        <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-gray-400 text-center py-12">No gender data available yet.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Fellow Qualifications</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {qualifications.length ? (
+                <ResponsiveContainer width="100%" height={350}>
+                  <PieChart>
+                    <Pie
+                      data={qualifications}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={120}
+                      label={renderPieLabel}
+                      labelLine
+                    >
+                      {qualifications.map((_, idx) => (
+                        <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <p className="text-gray-400 text-center py-12">No qualification data available yet.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Alerts Over Time */}
         <Card>
           <CardHeader>
@@ -269,7 +408,7 @@ export default function AnalyticsPage() {
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={rollups} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="weekKey" fontSize={10} tickMargin={8} tickFormatter={weekRangeLabelFromWeekKey} />
+                <XAxis dataKey="weekKey" fontSize={10} tickMargin={8} tickFormatter={weekRangeLabelFromWeekKey} />
                 <YAxis width={30} fontSize={10} tickMargin={5} />
                 <Tooltip />
                 <Bar dataKey="urgentAlertsCount" fill="#dc2626" name="Urgent Alerts" radius={[4, 4, 0, 0]} />
@@ -278,41 +417,21 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        {/* State-level table */}
+        {/* Reports by State (Bar) */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>State Performance Summary</CardTitle>
-              <Button variant="outline" size="sm" onClick={() => {
-                const exportData = byState.map((s: { _id: string; count: number }) => ({
-                  State: s._id,
-                  Reports: s.count
-                }));
-                exportToCSV(exportData, "state-performance");
-              }}>
-                <Download className="h-4 w-4 mr-1" /> Export CSV
-              </Button>
-            </div>
+            <CardTitle>Reports by State</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-left">
-                  <tr>
-                    <th className="px-4 py-3 font-medium text-gray-600">State</th>
-                    <th className="px-4 py-3 font-medium text-gray-600">Reports</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {byState.map((s: { _id: string; count: number }) => (
-                    <tr key={s._id} className="hover:bg-gray-50">
-                      <td className="px-4 py-2 font-medium">{s._id}</td>
-                      <td className="px-4 py-2">{s.count}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={byState} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" fontSize={10} tickMargin={5} />
+                <YAxis dataKey="name" type="category" width={80} fontSize={10} tickMargin={5} />
+                <Tooltip />
+                <Bar dataKey="value" fill="#ea580c" name="Reports" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
