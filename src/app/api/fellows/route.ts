@@ -55,7 +55,7 @@ export async function GET(request: Request) {
 
         if (search) {
             const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
-            filter.$or = [{ name: regex }, { lga: regex }];
+            filter.$or = [{ name: regex }, { lga: regex }, { qualification: regex }];
         }
 
         const [data, total] = await Promise.all([
