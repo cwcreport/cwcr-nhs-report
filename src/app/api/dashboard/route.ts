@@ -8,9 +8,9 @@ import mongoose from "mongoose";
 import { UserRole, AlertStatus } from "@/lib/constants";
 import { requireAuth } from "@/lib/auth-guard";
 import { jsonOk, jsonError } from "@/lib/api-helpers";
-import { currentWeekKey } from "@/lib/date-helpers";
+import { currentWeekKey, isoWeekKey } from "@/lib/date-helpers";
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const { session, error } = await requireAuth();
     if (error) return error;
@@ -19,6 +19,18 @@ export async function GET(_request: NextRequest) {
     await connectDB();
 
     const weekKey = currentWeekKey();
+
+    // ── Date range params ──
+    const url = new URL(request.url);
+    const fromParam = url.searchParams.get("from");
+    const toParam = url.searchParams.get("to");
+
+    let fromWeekKey: string | undefined;
+    let toWeekKey: string | undefined;
+    if (fromParam) fromWeekKey = isoWeekKey(new Date(fromParam));
+    if (toParam) toWeekKey = isoWeekKey(new Date(toParam));
+
+    const hasDateRange = !!(fromWeekKey || toWeekKey);
 
     // Scoping logic
     let mentorAuthIds: string[] | undefined = undefined;
@@ -54,11 +66,25 @@ export async function GET(_request: NextRequest) {
     const reportFilter: any = { weekKey };
     if (mentorDocIds) reportFilter.mentor = { $in: mentorDocIds };
 
+    // Date-ranged report filter: used for scoped counts when a date range is specified
+    const rangedReportFilter: any = {};
+    if (mentorDocIds) rangedReportFilter.mentor = { $in: mentorDocIds };
+    if (hasDateRange) {
+      rangedReportFilter.weekKey = {};
+      if (fromWeekKey) rangedReportFilter.weekKey.$gte = fromWeekKey;
+      if (toWeekKey) rangedReportFilter.weekKey.$lte = toWeekKey;
+    }
+
     const alertFilter: any = { status: { $ne: AlertStatus.RESOLVED } };
     // Note: Alert schema uses User ID for mentor field.
     if (mentorAuthIds) alertFilter.mentor = { $in: mentorAuthIds };
 
     const isZoneScoped = user.role === UserRole.COORDINATOR || user.role === UserRole.ZONAL_DESK_OFFICER;
+
+    // Build weekKey filter for rollups
+    const rollupWeekFilter: any = {};
+    if (fromWeekKey) rollupWeekFilter.weekKey = { ...rollupWeekFilter.weekKey, $gte: fromWeekKey };
+    if (toWeekKey) rollupWeekFilter.weekKey = { ...rollupWeekFilter.weekKey, $lte: toWeekKey };
 
     const [
       totalMentors,
@@ -69,22 +95,31 @@ export async function GET(_request: NextRequest) {
     ] = await Promise.all([
       User.countDocuments(baseMentorFilter),
       User.countDocuments(activeMentorFilter),
-      WeeklyReport.countDocuments(reportFilter),
+      WeeklyReport.countDocuments(hasDateRange ? rangedReportFilter : reportFilter),
       Alert.countDocuments(alertFilter),
       // Admins, ME Officers & Team Research Leads get pre-computed global rollups; zone-scoped roles get zone-scoped rollups
       user.role === UserRole.ADMIN || user.role === UserRole.ME_OFFICER || user.role === UserRole.TEAM_RESEARCH_LEAD
-        ? WeeklyRollup.find().sort({ weekKey: -1 }).limit(12).lean()
+        ? WeeklyRollup.find(rollupWeekFilter).sort({ weekKey: -1 }).limit(hasDateRange ? 52 : 12).lean()
         : isZoneScoped
-          ? buildZoneScopedRollups(mentorDocIds ?? [], mentorDocIds?.length ?? 0)
+          ? buildZoneScopedRollups(mentorDocIds ?? [], mentorDocIds?.length ?? 0, fromWeekKey, toWeekKey)
           : Promise.resolve([]),
     ]);
 
     // Aggregate submissions by state
     const aggregatePipeline: any[] = [];
+
+    // Date range match
+    const reportMatchStage: any = {};
     if (mentorDocIds) {
-      aggregatePipeline.push({
-        $match: { mentor: { $in: mentorDocIds.map((id: string) => new mongoose.Types.ObjectId(id)) } }
-      });
+      reportMatchStage.mentor = { $in: mentorDocIds.map((id: string) => new mongoose.Types.ObjectId(id)) };
+    }
+    if (fromWeekKey || toWeekKey) {
+      reportMatchStage.weekKey = {};
+      if (fromWeekKey) reportMatchStage.weekKey.$gte = fromWeekKey;
+      if (toWeekKey) reportMatchStage.weekKey.$lte = toWeekKey;
+    }
+    if (Object.keys(reportMatchStage).length > 0) {
+      aggregatePipeline.push({ $match: reportMatchStage });
     }
 
     aggregatePipeline.push(
@@ -133,13 +168,21 @@ export async function GET(_request: NextRequest) {
  * Instead of returning global WeeklyRollup records, this aggregates data only from
  * the reports belonging to the user's scoped set of mentors.
  */
-async function buildZoneScopedRollups(mentorDocIds: string[], scopedMentorCount: number) {
+async function buildZoneScopedRollups(mentorDocIds: string[], scopedMentorCount: number, fromWeekKey?: string, toWeekKey?: string) {
   if (mentorDocIds.length === 0) return [];
 
   const mentorObjectIds = mentorDocIds.map(id => new mongoose.Types.ObjectId(id));
 
+  const matchStage: any = { mentor: { $in: mentorObjectIds } };
+  if (fromWeekKey || toWeekKey) {
+    matchStage.weekKey = {};
+    if (fromWeekKey) matchStage.weekKey.$gte = fromWeekKey;
+    if (toWeekKey) matchStage.weekKey.$lte = toWeekKey;
+  }
+  const hasDateRange = !!(fromWeekKey || toWeekKey);
+
   const rawRollups = await WeeklyReport.aggregate([
-    { $match: { mentor: { $in: mentorObjectIds } } },
+    { $match: matchStage },
     {
       $lookup: {
         from: "mentors",
@@ -161,7 +204,7 @@ async function buildZoneScopedRollups(mentorDocIds: string[], scopedMentorCount:
       },
     },
     { $sort: { _id: -1 } },
-    { $limit: 12 },
+    { $limit: hasDateRange ? 52 : 12 },
   ]);
 
   return rawRollups.map(r => {

@@ -3,15 +3,17 @@
    ────────────────────────────────────────── */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/layout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Download } from "lucide-react";
 import { api, type DashboardData, type AnalyticsData } from "@/lib/api-client";
 import { exportToCSV } from "@/lib/export";
 import { weekRangeLabelFromWeekKey, weekRangeFilenameCodeFromWeekKey } from "@/lib/date-helpers";
+import { startOfISOWeek, endOfISOWeek } from "@/lib/date-helpers";
 import { jsPDF } from "jspdf";
 import { toPng } from "html-to-image";
 import {
@@ -38,21 +40,59 @@ const COLORS = [
   "#14b8a6", "#8b5cf6", "#f97316", "#06b6d4",
 ];
 
+function toDateString(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
 export default function AnalyticsPage() {
+  // Default date range: current ISO week (Mon–Sun)
+  const defaultFrom = useMemo(() => toDateString(startOfISOWeek(new Date())), []);
+  const defaultTo = useMemo(() => toDateString(endOfISOWeek(new Date())), []);
+
+  const [dateFrom, setDateFrom] = useState(defaultFrom);
+  const [dateTo, setDateTo] = useState(defaultTo);
   const [data, setData] = useState<DashboardData | null>(null);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [chartType, setChartType] = useState<"line" | "bar">("line");
   const [exporting, setExporting] = useState(false);
 
-  useEffect(() => {
-    Promise.all([api.dashboard.get(), api.analytics.get()])
+  const fetchData = useCallback((from: string, to: string) => {
+    setLoading(true);
+    const params = { from, to };
+    Promise.all([api.dashboard.get(params), api.analytics.get(params)])
       .then(([dashData, anData]) => {
         setData(dashData);
         setAnalyticsData(anData);
       })
       .finally(() => setLoading(false));
   }, []);
+
+  // Initial load
+  useEffect(() => {
+    fetchData(defaultFrom, defaultTo);
+  }, [fetchData, defaultFrom, defaultTo]);
+
+  const handleDateChange = () => {
+    if (dateFrom && dateTo) fetchData(dateFrom, dateTo);
+  };
+
+  const setPresetRange = (days: number) => {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - days);
+    const f = toDateString(startOfISOWeek(from));
+    const t = toDateString(endOfISOWeek(to));
+    setDateFrom(f);
+    setDateTo(t);
+    fetchData(f, t);
+  };
+
+  const resetToCurrentWeek = () => {
+    setDateFrom(defaultFrom);
+    setDateTo(defaultTo);
+    fetchData(defaultFrom, defaultTo);
+  };
 
   const handleExportPDF = async () => {
     setExporting(true);
@@ -172,17 +212,46 @@ export default function AnalyticsPage() {
       </Header>
 
       <div id="analytics-export-area" className="p-6 space-y-6 bg-gray-50">
-        {/* Toggle */}
-        <Select
-          label="Trend Chart Type"
-          value={chartType}
-          onChange={(e) => setChartType(e.target.value as "line" | "bar")}
-          options={[
-            { label: "Line Chart", value: "line" },
-            { label: "Bar Chart", value: "bar" },
-          ]}
-          className="w-48"
-        />
+        {/* Global controls: Date Range + Chart Type Toggle */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-wrap items-end gap-4">
+              <Input
+                label="From"
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-44"
+              />
+              <Input
+                label="To"
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-44"
+              />
+              <Button size="sm" onClick={handleDateChange} disabled={loading}>
+                {loading ? "Loading…" : "Apply"}
+              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={resetToCurrentWeek}>This Week</Button>
+                <Button size="sm" variant="outline" onClick={() => setPresetRange(28)}>Last 4 Weeks</Button>
+                <Button size="sm" variant="outline" onClick={() => setPresetRange(90)}>Last 3 Months</Button>
+                <Button size="sm" variant="outline" onClick={() => setPresetRange(365)}>Last Year</Button>
+              </div>
+              <Select
+                label="Chart Type"
+                value={chartType}
+                onChange={(e) => setChartType(e.target.value as "line" | "bar")}
+                options={[
+                  { label: "Line Chart", value: "line" },
+                  { label: "Bar Chart", value: "bar" },
+                ]}
+                className="w-36"
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Submission Rate + Sessions Over Time */}
         <Card>

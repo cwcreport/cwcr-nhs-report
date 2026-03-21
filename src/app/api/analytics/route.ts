@@ -2,12 +2,16 @@
    API: /api/analytics — aggregated analytics data
    Fellows & mentors distribution by state, gender;
    Fellow qualifications grouped by subject area.
+   Zone-scoped for coordinators and desk officers.
+   Supports date range filtering via ?from=YYYY-MM-DD&to=YYYY-MM-DD
    ────────────────────────────────────────── */
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import { Fellow, Mentor } from "@/models";
+import { Fellow, Mentor, Coordinator, DeskOfficer } from "@/models";
+import { UserRole } from "@/lib/constants";
 import { requireAuth } from "@/lib/auth-guard";
 import { jsonOk, jsonError } from "@/lib/api-helpers";
+import mongoose from "mongoose";
 
 /** Map of keyword patterns → canonical qualification group */
 const QUALIFICATION_GROUPS: Record<string, string[]> = {
@@ -51,20 +55,66 @@ function classifyQualification(raw: string): string {
   return "Other";
 }
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const { session, error } = await requireAuth();
     if (error) return error;
+    const user = session!.user;
 
     await connectDB();
 
-    // Fetch all fellows with their mentor data
-    const fellows = await Fellow.find()
+    // ── Date range filtering ──
+    const url = new URL(request.url);
+    const fromParam = url.searchParams.get("from");
+    const toParam = url.searchParams.get("to");
+
+    const dateFilter: Record<string, unknown> = {};
+    if (fromParam || toParam) {
+      dateFilter.createdAt = {};
+      if (fromParam) (dateFilter.createdAt as Record<string, unknown>).$gte = new Date(fromParam);
+      if (toParam) {
+        const toDate = new Date(toParam);
+        toDate.setHours(23, 59, 59, 999);
+        (dateFilter.createdAt as Record<string, unknown>).$lte = toDate;
+      }
+    }
+
+    // ── Zone scoping ──
+    let scopedMentorDocIds: mongoose.Types.ObjectId[] | undefined;
+
+    if (user.role === UserRole.COORDINATOR) {
+      const coordinator = await Coordinator.findOne({ authId: user.id }).lean();
+      if (coordinator) {
+        const mentors = await Mentor.find({ coordinator: coordinator._id }).lean();
+        scopedMentorDocIds = mentors.map(m => m._id as mongoose.Types.ObjectId);
+      } else {
+        scopedMentorDocIds = [];
+      }
+    } else if (user.role === UserRole.ZONAL_DESK_OFFICER) {
+      const deskOfficer = await DeskOfficer.findOne({ authId: user.id }).lean();
+      if (deskOfficer && deskOfficer.states?.length) {
+        const mentors = await Mentor.find({ states: { $in: deskOfficer.states } }).lean();
+        scopedMentorDocIds = mentors.map(m => m._id as mongoose.Types.ObjectId);
+      } else {
+        scopedMentorDocIds = [];
+      }
+    }
+
+    // ── Build filters ──
+    const fellowFilter: Record<string, unknown> = { ...dateFilter };
+    const mentorFilter: Record<string, unknown> = { ...dateFilter };
+
+    if (scopedMentorDocIds) {
+      fellowFilter.mentor = { $in: scopedMentorDocIds };
+      mentorFilter._id = { $in: scopedMentorDocIds };
+    }
+
+    // Fetch fellows and mentors with scoping
+    const fellows = await Fellow.find(fellowFilter)
       .populate({ path: "mentor", select: "states" })
       .lean();
 
-    // Fetch all mentors with their states
-    const mentors = await Mentor.find().lean();
+    const mentors = await Mentor.find(mentorFilter).lean();
 
     // ── Fellows by state (via mentor.states) ──
     const fellowsByState: Record<string, number> = {};

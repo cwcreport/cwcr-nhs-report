@@ -31,11 +31,17 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 // ─── Dashboard ─────────────────────────────
 export const api = {
   dashboard: {
-    get: () => request<DashboardData>("/api/dashboard"),
+    get: (params?: Record<string, string>) => {
+      const qs = params ? `?${new URLSearchParams(params).toString()}` : "";
+      return request<DashboardData>(`/api/dashboard${qs}`);
+    },
   },
 
   analytics: {
-    get: () => request<AnalyticsData>("/api/analytics"),
+    get: (params?: Record<string, string>) => {
+      const qs = params ? `?${new URLSearchParams(params).toString()}` : "";
+      return request<AnalyticsData>(`/api/analytics${qs}`);
+    },
   },
 
   admins: {
