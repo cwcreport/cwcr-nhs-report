@@ -17,15 +17,9 @@ export const UserRole = {
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
 // ─── Nigerian States covered by the programme ─
-export const STATES = [
-  "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa",
-  "Benue", "Borno", "Cross River", "Delta", "Ebonyi", "Edo",
-  "Ekiti", "Enugu", "FCT", "Gombe", "Imo", "Jigawa",
-  "Kaduna", "Kano", "Katsina", "Kebbi", "Kogi", "Kwara",
-  "Lagos", "Nasarawa", "Niger", "Ogun", "Ondo", "Osun",
-  "Oyo", "Plateau", "Rivers", "Sokoto", "Taraba", "Yobe", "Zamfara",
-] as const;
-export type State = (typeof STATES)[number];
+import statesLgaData from "../../nigerian-states-lga.json";
+export const STATES = statesLgaData.map((d) => d.state) as unknown as readonly string[];
+export type State = string;
 
 // ─── Outreach Activity Types ────────────────
 export const OUTREACH_TYPES = [

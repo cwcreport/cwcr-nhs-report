@@ -17610,7 +17610,7 @@
     ]
   },
   {
-    "state": "Federal Capital Territory",
+    "state": "FCT",
     "lgas": [
       {
         "name": "Abaji",
@@ -32765,7 +32765,7 @@
     ]
   },
   {
-    "state": "Nassarawa",
+    "state": "Nasarawa",
     "lgas": [
       {
         "name": "Akwanga",
@@ -33318,7 +33318,7 @@
         ]
       },
       {
-        "name": "Nassarawa Egon",
+        "name": "Nasarawa Egon",
         "wards": [
           {
             "name": "Agunji",

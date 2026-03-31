@@ -4,7 +4,13 @@
 import React, { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { X } from "lucide-react";
-import locationsData from "@/lib/locations.json";
+import rawLocationsData from "../../../nigerian-states-lga.json";
+
+// Normalize LGAs from objects (nigerian-states-lga.json) to flat string arrays
+const locationsData = rawLocationsData.map((d: any) => ({
+    state: d.state,
+    lgas: d.lgas.map((l: any) => (typeof l === "string" ? l : l.name)),
+}));
 
 export interface LocationSelectorProps {
     selectedStates: string[];
