@@ -268,7 +268,7 @@ export default function NewMentorMonthlyReportPage() {
           </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Sessions Held</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sessions Booked</label>
               <Input
                 type="number"
                 min={0}
