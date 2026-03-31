@@ -75,6 +75,14 @@ export async function GET(request: Request) {
             }
         }
 
+        // Deduplicated solutions from all matching sessions → prepopulate recommendations
+        const solutionSet = new Set<string>();
+        for (const s of matchingSessions) {
+            for (const sol of s.solutions || []) {
+                if (sol.trim()) solutionSet.add(sol.trim());
+            }
+        }
+
         return NextResponse.json({
             fellow: {
                 _id: fellowDoc._id,
@@ -86,6 +94,7 @@ export async function GET(request: Request) {
             sessionsAttended: sessionsHeld,
             sessionsAbsent: 0,
             challenges: Array.from(challengeSet),
+            recommendations: Array.from(solutionSet),
             weeklyReportIds,
         });
     } catch (error: any) {

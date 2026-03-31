@@ -694,6 +694,7 @@ export interface MentorMonthlyReportPrefill {
   sessionsAttended: number;
   sessionsAbsent: number;
   challenges: string[];
+  recommendations: string[];
   weeklyReportIds: string[];
 }
 

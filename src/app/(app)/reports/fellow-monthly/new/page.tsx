@@ -101,6 +101,9 @@ export default function NewMentorMonthlyReportPage() {
         if (data.challenges.length > 0) {
           setChallenges(data.challenges.length ? data.challenges : [""]);
         }
+        if (data.recommendations?.length > 0) {
+          setRecommendations(data.recommendations);
+        }
       } catch {
         // prefill failed – leave fields editable
         setPrefillData(null);
