@@ -669,7 +669,7 @@ export interface CreateMonthlyReportInput {
 
 export interface MentorMonthlyReport {
   _id: string;
-  mentor: { _id: string; authId?: { name: string; email: string } };
+  mentor: { _id: string; states?: string[]; authId?: { name: string; email: string } };
   fellow: { _id: string; name: string; lga: string; qualification?: string };
   month: string;
   fellowName: string;

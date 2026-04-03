@@ -3,13 +3,14 @@
    ────────────────────────────────────────── */
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
+import { Select } from "@/components/ui/Select";
 import { api, type MentorMonthlyReport } from "@/lib/api-client";
 import { UserRole } from "@/lib/constants";
 import { Eye, FileText, Plus, Trash2 } from "lucide-react";
@@ -30,6 +31,7 @@ export default function MentorMonthlyReportsPage() {
   const [reports, setReports] = useState<MentorMonthlyReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [stateFilter, setStateFilter] = useState("");
 
   const fetchReports = useCallback(async () => {
     setLoading(true);
@@ -47,6 +49,21 @@ export default function MentorMonthlyReportsPage() {
   useEffect(() => {
     fetchReports();
   }, [fetchReports]);
+
+  // Derive unique states from loaded reports
+  const availableStates = useMemo(() => {
+    const stateSet = new Set<string>();
+    reports.forEach((r) => {
+      r.mentor?.states?.forEach((s) => stateSet.add(s));
+    });
+    return Array.from(stateSet).sort();
+  }, [reports]);
+
+  // Frontend-only filtered list
+  const filteredReports = useMemo(() => {
+    if (!stateFilter) return reports;
+    return reports.filter((r) => r.mentor?.states?.includes(stateFilter));
+  }, [reports, stateFilter]);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Delete this report? This cannot be undone.")) return;
@@ -68,8 +85,19 @@ export default function MentorMonthlyReportsPage() {
       <div className="p-6 space-y-4">
         <Card>
           <CardContent className="pt-4 flex justify-between items-center flex-col sm:flex-row gap-4">
-            <div className="text-sm text-gray-600">
-              {total} report{total === 1 ? "" : "s"} found.
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="text-sm text-gray-600">
+                {filteredReports.length} of {total} report{total === 1 ? "" : "s"}
+              </div>
+              {availableStates.length > 1 && (
+                <Select
+                  value={stateFilter}
+                  onChange={(e) => setStateFilter(e.target.value)}
+                  placeholder="All States"
+                  options={availableStates.map((s) => ({ value: s, label: s }))}
+                  className="w-48"
+                />
+              )}
             </div>
             {canCreate && (
               <Link href="/reports/fellow-monthly/new">
@@ -117,7 +145,7 @@ export default function MentorMonthlyReportsPage() {
                   </td>
                 </tr>
               ) : (
-                reports.map(r => {
+                filteredReports.map(r => {
                   const displayMonth = format(parseISO(`${r.month}-01`), "MMMM yyyy");
                   const attendancePct =
                     r.sessionsHeld > 0
