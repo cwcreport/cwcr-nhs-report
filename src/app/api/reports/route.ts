@@ -3,8 +3,8 @@
    ────────────────────────────────────────── */
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import { WeeklyReport, Alert, User, Mentor, Coordinator, DeskOfficer } from "@/models";
-import { UserRole } from "@/lib/constants";
+import { WeeklyReport, Alert, User, Mentor, Coordinator, DeskOfficer, ReportHistory } from "@/models";
+import { UserRole, ReportHistoryReportType, ReportHistoryAction } from "@/lib/constants";
 import { requireAuth, requireRole } from "@/lib/auth-guard";
 import { jsonOk, jsonError, jsonCreated, parseBody, parsePagination } from "@/lib/api-helpers";
 import { isoWeekKey } from "@/lib/date-helpers";
@@ -241,5 +241,16 @@ export async function POST(request: NextRequest) {
   await rebuildRollupForWeek(weekKey);
 
   void logActivity({ session, action: "SUBMIT_REPORT", targetType: "Report", targetId: String(report._id), targetName: weekKey });
+
+  void ReportHistory.create({
+    reportId: report._id,
+    reportType: ReportHistoryReportType.WEEKLY_REPORT,
+    action: ReportHistoryAction.CREATED,
+    snapshot: null,
+    actorId: session!.user.id,
+    actorName: session!.user.name,
+    actorRole: session!.user.role,
+  });
+
   return jsonCreated(report);
 }

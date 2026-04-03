@@ -6,7 +6,8 @@ import { Fellow } from "@/models/Fellow";
 import { Mentor } from "@/models/Mentor";
 import { Coordinator } from "@/models/Coordinator";
 import { DeskOfficer } from "@/models/DeskOfficer";
-import { UserRole } from "@/lib/constants";
+import { ReportHistory } from "@/models/ReportHistory";
+import { UserRole, ReportHistoryReportType, ReportHistoryAction } from "@/lib/constants";
 import { logActivity } from "@/lib/activity-logger";
 
 export async function GET(request: Request) {
@@ -88,6 +89,16 @@ export async function POST(request: Request) {
             targetType: "MentorMonthlyReport",
             targetId: String(report._id),
             targetName: `${fellowDoc.name} – ${body.month}`,
+        });
+
+        void ReportHistory.create({
+            reportId: report._id,
+            reportType: ReportHistoryReportType.MENTOR_MONTHLY_REPORT,
+            action: ReportHistoryAction.CREATED,
+            snapshot: null,
+            actorId: session.user.id,
+            actorName: session.user.name,
+            actorRole: session.user.role,
         });
 
         return NextResponse.json(report, { status: 201 });

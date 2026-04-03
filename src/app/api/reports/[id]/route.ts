@@ -3,12 +3,11 @@
    ────────────────────────────────────────── */
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import { WeeklyReport, Mentor, Coordinator, DeskOfficer } from "@/models";
-import { UserRole } from "@/lib/constants";
+import { WeeklyReport, Mentor, Coordinator, DeskOfficer, ReportHistory } from "@/models";
+import { UserRole, ReportHistoryReportType, ReportHistoryAction } from "@/lib/constants";
 import { requireAuth } from "@/lib/auth-guard";
 import { jsonOk, jsonError, parseBody } from "@/lib/api-helpers";
 import { rebuildRollupForWeek } from "@/services/rollup.service";
-import { currentWeekKey } from "@/lib/date-helpers";
 import { logActivity } from "@/lib/activity-logger";
 
 type Params = { params: Promise<{ id: string }> };
@@ -98,11 +97,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const report = await WeeklyReport.findById(id);
   if (!report) return jsonError("Report not found", 404);
 
-  // Time guard — only allow editing within the same ISO week
-  if (report.weekKey !== currentWeekKey()) {
-    return jsonError("This report can no longer be edited — the reporting week has ended.", 403);
-  }
-
   const userRole = session!.user.role as UserRole;
 
   if (userRole === UserRole.MENTOR) {
@@ -124,11 +118,22 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   // Admins can edit any report (no extra check needed)
 
   // Apply updates
+  const snapshot = JSON.stringify(report.toObject());
   Object.assign(report, body);
   await report.save();
 
   // Rebuild rollup
   await rebuildRollupForWeek(report.weekKey);
+
+  void ReportHistory.create({
+    reportId: report._id,
+    reportType: ReportHistoryReportType.WEEKLY_REPORT,
+    action: ReportHistoryAction.UPDATED,
+    snapshot,
+    actorId: session!.user.id,
+    actorName: session!.user.name,
+    actorRole: session!.user.role,
+  });
 
   void logActivity({ session, action: "UPDATE_REPORT", targetType: "Report", targetId: id, targetName: report.weekKey });
   return jsonOk(report);
@@ -163,10 +168,21 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
   }
 
   const weekKey = report.weekKey;
+  const deleteSnapshot = JSON.stringify(report.toObject());
   await WeeklyReport.findByIdAndDelete(id);
 
   // Rebuild rollup after deletion
   await rebuildRollupForWeek(weekKey);
+
+  void ReportHistory.create({
+    reportId: id,
+    reportType: ReportHistoryReportType.WEEKLY_REPORT,
+    action: ReportHistoryAction.DELETED,
+    snapshot: deleteSnapshot,
+    actorId: session!.user.id,
+    actorName: session!.user.name,
+    actorRole: session!.user.role,
+  });
 
   void logActivity({ session, action: "DELETE_REPORT", targetType: "Report", targetId: id, targetName: weekKey });
   return jsonOk({ message: "Weekly report deleted" });

@@ -11,10 +11,10 @@ import { Badge } from "@/components/ui/Badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { api, type Report, type ReportComment } from "@/lib/api-client";
 import { format } from "date-fns";
-import { ArrowLeft, FileDown, Pencil, Send, MessageSquare, Trash2 } from "lucide-react";
+import { ArrowLeft, FileDown, Pencil, Send, MessageSquare, Trash2, History } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { UserRole } from "@/lib/constants";
-import { isoWeekKey, weekRangeLabelFromDate } from "@/lib/date-helpers";
+import { weekRangeLabelFromDate } from "@/lib/date-helpers";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 
@@ -114,9 +114,8 @@ export default function ReportDetailPage() {
           <PDFDownloadButton report={report} size="sm">
             <FileDown className="h-4 w-4 mr-1" /> Download PDF
           </PDFDownloadButton>
-          {/* Edit — only within the same week, and only for the owning mentor or their coordinator */}
-          {report.weekKey === isoWeekKey(new Date()) &&
-            session?.user &&
+          {/* Edit — for the owning mentor, their coordinator, or admin */}
+          {session?.user &&
             (session.user.role === UserRole.MENTOR ||
               session.user.role === UserRole.COORDINATOR ||
               session.user.role === UserRole.ADMIN) && (
@@ -126,6 +125,11 @@ export default function ReportDetailPage() {
                 </Button>
               </Link>
             )}
+          <Link href={`/reports/${report._id}/history`}>
+            <Button variant="outline" size="sm">
+              <History className="h-4 w-4 mr-1" /> Report History
+            </Button>
+          </Link>
           {canDelete && (
             <Button variant="destructive" size="sm" onClick={handleDelete}>
               <Trash2 className="h-4 w-4 mr-1" /> Delete

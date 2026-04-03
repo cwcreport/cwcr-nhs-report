@@ -3,6 +3,8 @@
    Single source of truth for all API calls
    ────────────────────────────────────────── */
 
+import type { ReportHistoryReportType, ReportHistoryAction } from "@/lib/constants";
+
 class ApiError extends Error {
   constructor(public status: number, message: string) {
     super(message);
@@ -214,6 +216,8 @@ export const api = {
       request<{ message: string }>(`/api/reports/${id}`, { method: "DELETE" }),
     checkCurrentWeek: () =>
       request<{ hasReport: boolean }>("/api/reports/check-current-week"),
+    history: (id: string) =>
+      request<ReportHistoryEntry[]>(`/api/reports/${id}/history`),
 
     comments: {
       list: (reportId: string) =>
@@ -241,8 +245,12 @@ export const api = {
       get: (id: string) => request<MentorMonthlyReport>(`/api/reports/fellow-monthly/${id}`),
       create: (data: CreateMentorMonthlyReportInput) =>
         request<MentorMonthlyReport>("/api/reports/fellow-monthly", { method: "POST", body: JSON.stringify(data) }),
+      update: (id: string, data: Partial<CreateMentorMonthlyReportInput>) =>
+        request<MentorMonthlyReport>(`/api/reports/fellow-monthly/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
       delete: (id: string) =>
         request<{ success: boolean }>(`/api/reports/fellow-monthly/${id}`, { method: "DELETE" }),
+      history: (id: string) =>
+        request<ReportHistoryEntry[]>(`/api/reports/fellow-monthly/${id}/history`),
       prefill: (fellowId: string, month: string) =>
         request<MentorMonthlyReportPrefill>(`/api/reports/fellow-monthly/prefill?fellowId=${fellowId}&month=${encodeURIComponent(month)}`),
     },
@@ -554,6 +562,20 @@ export interface ReportComment {
   authorRole: string;
   body: string;
   createdAt: string;
+}
+
+export interface ReportHistoryEntry {
+  _id: string;
+  reportId: string;
+  reportType: ReportHistoryReportType;
+  action: ReportHistoryAction;
+  snapshot: string | null;
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  meta?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CreateReportInput {

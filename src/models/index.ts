@@ -13,6 +13,7 @@ export { MentorMonthlyReport, type IMentorMonthlyReport } from "./MentorMonthlyR
 export { DeskOfficer, type IDeskOfficer } from "./DeskOfficer";
 export { MEOfficer, type IMEOfficer } from "./MEOfficer";
 export { TeamResearchLead, type ITeamResearchLead } from "./TeamResearchLead";
+export { ReportHistory, type IReportHistory } from "./ReportHistory";
 export { ActivityLog, type IActivityLog } from "./ActivityLog";
 export { ExceptionLog, type IExceptionLog } from "./ExceptionLog";
 export { IntegrationLog, type IIntegrationLog } from "./IntegrationLog";

@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { api, type MentorMonthlyReport } from "@/lib/api-client";
 import { UserRole } from "@/lib/constants";
-import { ArrowLeft, Trash2, Loader2, Download } from "lucide-react";
+import { ArrowLeft, Trash2, Loader2, Download, Pencil, History } from "lucide-react";
+import Link from "next/link";
 
 const MentorMonthlyReportPDF = dynamic(
   () => import("@/components/pdf/MentorMonthlyReportPDF").then(m => m.MentorMonthlyReportPDF),
@@ -173,6 +174,18 @@ export default function MentorMonthlyReportDetailPage() {
               )}
               {downloading ? "Generating…" : "Download PDF"}
             </Button>
+          {canDelete && (
+            <Link href={`/reports/fellow-monthly/${report._id}/edit`}>
+              <Button variant="outline" size="sm">
+                <Pencil className="h-4 w-4 mr-1" /> Edit
+              </Button>
+            </Link>
+          )}
+          <Link href={`/reports/fellow-monthly/${report._id}/history`}>
+            <Button variant="outline" size="sm">
+              <History className="h-4 w-4 mr-1" /> Report History
+            </Button>
+          </Link>
           {canDelete && (
             <Button
               variant="outline"

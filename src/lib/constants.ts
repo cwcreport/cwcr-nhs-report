@@ -76,6 +76,20 @@ export const ALLOWED_UPLOAD_TYPES = [
   "application/pdf",
 ] as const;
 
+// ─── Report History ─────────────────────────
+export const ReportHistoryReportType = {
+  WEEKLY_REPORT: "WeeklyReport",
+  MENTOR_MONTHLY_REPORT: "MentorMonthlyReport",
+} as const;
+export type ReportHistoryReportType = (typeof ReportHistoryReportType)[keyof typeof ReportHistoryReportType];
+
+export const ReportHistoryAction = {
+  CREATED: "created",
+  UPDATED: "updated",
+  DELETED: "deleted",
+} as const;
+export type ReportHistoryAction = (typeof ReportHistoryAction)[keyof typeof ReportHistoryAction];
+
 // ─── Week Day Constants ─────────────────────
 export const REMINDER_DAY = 5; // Friday (0=Sun, 5=Fri)
 export const DIGEST_DAY = 1;   // Monday
