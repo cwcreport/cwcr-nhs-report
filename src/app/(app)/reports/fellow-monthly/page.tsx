@@ -13,7 +13,7 @@ import { Select } from "@/components/ui/Select";
 import { api, type MentorMonthlyReport } from "@/lib/api-client";
 import { UserRole } from "@/lib/constants";
 import { safeFormatISO } from "@/lib/date-helpers";
-import { Eye, FileText, Plus, Trash2 } from "lucide-react";
+import { Eye, FileText, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 
 const RATING_COLORS: Record<string, string> = {
   Excellent: "bg-green-100 text-green-800",
@@ -30,21 +30,23 @@ export default function MentorMonthlyReportsPage() {
 
   const [reports, setReports] = useState<MentorMonthlyReport[]>([]);
   const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [page, setPage] = useState(1);
   const [stateFilter, setStateFilter] = useState("");
 
   const fetchReports = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await api.reports.fellowMonthly.list({ limit: "100" });
+      const params: Record<string, string> = { page: String(page), limit: "15" };
+      const result = await api.reports.fellowMonthly.list(params);
       setReports(result.data);
-      setTotal(result.pagination.total);
+      setPagination(result.pagination);
     } catch {
       // ignore
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     fetchReports();
@@ -87,7 +89,7 @@ export default function MentorMonthlyReportsPage() {
           <CardContent className="pt-4 flex justify-between items-center flex-col sm:flex-row gap-4">
             <div className="flex items-center gap-4 flex-wrap">
               <div className="text-sm text-gray-600">
-                {filteredReports.length} of {total} report{total === 1 ? "" : "s"}
+                {filteredReports.length} of {pagination.total} report{pagination.total === 1 ? "" : "s"}
               </div>
               {availableStates.length > 1 && (
                 <Select
@@ -200,6 +202,33 @@ export default function MentorMonthlyReportsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between text-sm text-gray-500">
+            <span>
+              Page {pagination.page} of {pagination.totalPages} ({pagination.total} reports)
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={pagination.page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
