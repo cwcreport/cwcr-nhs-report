@@ -3,7 +3,7 @@
    ────────────────────────────────────────── */
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
 import { api, type MentorMonthlyReport } from "@/lib/api-client";
-import { UserRole } from "@/lib/constants";
+import { UserRole, STATES } from "@/lib/constants";
 import { safeFormatISO } from "@/lib/date-helpers";
 import { Eye, FileText, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -34,11 +34,13 @@ export default function MentorMonthlyReportsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [stateFilter, setStateFilter] = useState("");
+  const [scopedStates, setScopedStates] = useState<string[]>([]);
 
   const fetchReports = useCallback(async () => {
     setLoading(true);
     try {
       const params: Record<string, string> = { page: String(page), limit: String(pageSize) };
+      if (stateFilter) params.state = stateFilter;
       const result = await api.reports.fellowMonthly.list(params);
       setReports(result.data);
       setPagination(result.pagination);
@@ -47,26 +49,35 @@ export default function MentorMonthlyReportsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize]);
+  }, [page, pageSize, stateFilter]);
+
+  // Fetch the states the current user is allowed to see
+  useEffect(() => {
+    async function fetchScopedStates() {
+      const role = session?.user?.role;
+      if (role !== UserRole.COORDINATOR && role !== UserRole.ZONAL_DESK_OFFICER) {
+        setScopedStates([]);
+        return;
+      }
+      try {
+        const res = await fetch("/api/profile");
+        if (!res.ok) return;
+        const data = await res.json();
+        const states = (data?.roleDetails?.states ?? []) as string[];
+        const cleaned = Array.from(
+          new Set(states.map((s) => String(s).toUpperCase().trim()).filter(Boolean)),
+        );
+        setScopedStates(cleaned);
+      } catch {
+        // no-op
+      }
+    }
+    fetchScopedStates();
+  }, [session?.user?.role]);
 
   useEffect(() => {
     fetchReports();
   }, [fetchReports]);
-
-  // Derive unique states from loaded reports
-  const availableStates = useMemo(() => {
-    const stateSet = new Set<string>();
-    reports.forEach((r) => {
-      r.mentor?.states?.forEach((s) => stateSet.add(s));
-    });
-    return Array.from(stateSet).sort();
-  }, [reports]);
-
-  // Frontend-only filtered list
-  const filteredReports = useMemo(() => {
-    if (!stateFilter) return reports;
-    return reports.filter((r) => r.mentor?.states?.includes(stateFilter));
-  }, [reports, stateFilter]);
 
   const handleDelete = async (id: string) => {
     if (!window.confirm("Delete this report? This cannot be undone.")) return;
@@ -90,14 +101,20 @@ export default function MentorMonthlyReportsPage() {
           <CardContent className="pt-4 flex justify-between items-center flex-col sm:flex-row gap-4">
             <div className="flex items-center gap-4 flex-wrap">
               <div className="text-sm text-gray-600">
-                {filteredReports.length} of {pagination.total} report{pagination.total === 1 ? "" : "s"}
+                {pagination.total} report{pagination.total === 1 ? "" : "s"}
               </div>
-              {availableStates.length > 1 && (
+              {userRole !== UserRole.MENTOR && (
                 <Select
                   value={stateFilter}
-                  onChange={(e) => setStateFilter(e.target.value)}
-                  placeholder="All States"
-                  options={availableStates.map((s) => ({ value: s, label: s }))}
+                  onChange={(e) => { setStateFilter(e.target.value); setPage(1); }}
+                  options={[
+                    { label: "All States", value: "" },
+                    ...(
+                      userRole === UserRole.COORDINATOR || userRole === UserRole.ZONAL_DESK_OFFICER
+                        ? scopedStates
+                        : STATES
+                    ).map((s) => ({ label: s, value: s })),
+                  ]}
                   className="w-full sm:w-48"
                 />
               )}
@@ -148,7 +165,7 @@ export default function MentorMonthlyReportsPage() {
                   </td>
                 </tr>
               ) : (
-                filteredReports.map(r => {
+                reports.map(r => {
                   const displayMonth = safeFormatISO(r.month ? `${r.month}-01` : null, "MMMM yyyy");
                   const attendancePct =
                     r.sessionsHeld > 0

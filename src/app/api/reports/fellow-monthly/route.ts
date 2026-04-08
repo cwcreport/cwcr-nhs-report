@@ -21,6 +21,7 @@ export async function GET(request: Request) {
         const limit = parseInt(searchParams.get("limit") || "20", 10);
         const skip = (page - 1) * limit;
 
+        const stateParam = searchParams.get("state");
         const filter: Record<string, any> = {};
 
         if (session.user.role === UserRole.MENTOR) {
@@ -30,17 +31,26 @@ export async function GET(request: Request) {
         } else if (session.user.role === UserRole.COORDINATOR) {
             const coordDoc = await Coordinator.findOne({ authId: session.user.id }).lean();
             if (!coordDoc) return NextResponse.json({ data: [], pagination: { page, limit, total: 0, totalPages: 0 } });
-            const mentorIds = await Mentor.find({ coordinator: coordDoc._id }).distinct("_id");
+            const mentorFilter: Record<string, any> = { coordinator: coordDoc._id };
+            if (stateParam) mentorFilter.states = stateParam;
+            const mentorIds = await Mentor.find(mentorFilter).distinct("_id");
             filter.mentor = { $in: mentorIds };
         } else if (session.user.role === UserRole.ZONAL_DESK_OFFICER) {
             const deskOfficerDoc = await DeskOfficer.findOne({ authId: session.user.id }).lean();
             if (!deskOfficerDoc || !deskOfficerDoc.states?.length) {
                 return NextResponse.json({ data: [], pagination: { page, limit, total: 0, totalPages: 0 } });
             }
-            const mentorIds = await Mentor.find({ states: { $in: deskOfficerDoc.states } }).distinct("_id");
+            const allowedStates = stateParam
+                ? deskOfficerDoc.states.filter((s: string) => s === stateParam)
+                : deskOfficerDoc.states;
+            const mentorIds = await Mentor.find({ states: { $in: allowedStates } }).distinct("_id");
+            filter.mentor = { $in: mentorIds };
+        } else if (stateParam) {
+            // Admin, ME Officer, Team Research Lead – filter by state if provided
+            const mentorIds = await Mentor.find({ states: stateParam }).distinct("_id");
             filter.mentor = { $in: mentorIds };
         }
-        // Admin, ME Officer, Team Research Lead see all
+        // Without stateParam, Admin/ME Officer/Team Research Lead see all
 
         const [data, total] = await Promise.all([
             MentorMonthlyReport.find(filter)
