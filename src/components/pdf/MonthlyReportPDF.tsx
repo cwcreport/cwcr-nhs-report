@@ -193,7 +193,7 @@ interface MonthlyReportPDFProps {
 }
 
 export function MonthlyReportPDF({ reports, monthLabel, zonalAuditData }: MonthlyReportPDFProps) {
-    if (!reports || reports.length === 0) {
+    if ((!reports || reports.length === 0) && !zonalAuditData) {
         return (
             <Document>
                 <Page style={s.page}>
@@ -203,23 +203,24 @@ export function MonthlyReportPDF({ reports, monthLabel, zonalAuditData }: Monthl
         )
     }
 
-    // Aggregate info
-    const firstReport = reports[reports.length - 1]; // oldest first assuming sorted DESC, wait, backend sorts DESC
-    // let's just pick mentor from the first available
-    const mentorName =
-        reports[0]?.mentorName ??
-        reports[0]?.mentor?.name ??
-        ((reports[0]?.mentor as any)?.authId?.name as string | undefined) ??
-        "Mentor";
+    const hasReports = reports && reports.length > 0;
 
-    // Combine fellows across all reports uniquely
-    const allFellows = reports.flatMap(r => r.fellows || []);
+    // Aggregate info (only when reports exist)
+    const mentorName = hasReports
+        ? (reports[0]?.mentorName ??
+           reports[0]?.mentor?.name ??
+           ((reports[0]?.mentor as any)?.authId?.name as string | undefined) ??
+           "Mentor")
+        : "Mentor";
+
+    const allFellows = hasReports ? reports.flatMap(r => r.fellows || []) : [];
     const uniqueFellows = removeDuplicates(allFellows, (f) => f.name.toLowerCase().trim());
 
-    // Collect all sessions sorted by date
-    const allSessions: { session: Session, weekKey: string }[] = reports.flatMap(r =>
-        (r.sessions || []).map(s => ({ session: s, weekKey: r.weekKey }))
-    ).sort((a, b) => new Date(a.session.sessionDate).getTime() - new Date(b.session.sessionDate).getTime());
+    const allSessions: { session: Session, weekKey: string }[] = hasReports
+        ? reports.flatMap(r =>
+              (r.sessions || []).map(s => ({ session: s, weekKey: r.weekKey }))
+          ).sort((a, b) => new Date(a.session.sessionDate).getTime() - new Date(b.session.sessionDate).getTime())
+        : [];
 
     return (
         <Document
@@ -227,6 +228,7 @@ export function MonthlyReportPDF({ reports, monthLabel, zonalAuditData }: Monthl
             author={mentorName}
         >
             {/* ── Cover Page ──────────────────── */}
+            {hasReports && (
             <Page size="A4" style={s.page}>
                 <Text style={s.coverTitle}>
                     Monthly Mentorship Sessions Report
@@ -284,9 +286,10 @@ export function MonthlyReportPDF({ reports, monthLabel, zonalAuditData }: Monthl
 
                 <PageFooter />
             </Page>
+            )}
 
             {/* ── Individual Session Pages ──── */}
-            {allSessions.map(({ session, weekKey }, idx) => (
+            {hasReports && allSessions.map(({ session, weekKey }, idx) => (
                 <Page key={idx} size="A4" style={s.page}>
                     <Text style={s.sessionHeader}>Mentorship Session Report</Text>
                     <Text style={s.sessionWeek}>
