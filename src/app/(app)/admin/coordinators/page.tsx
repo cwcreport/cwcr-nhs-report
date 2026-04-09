@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/Badge";
 import { LocationSelector } from "@/components/ui/LocationSelector";
 import { Card, CardContent } from "@/components/ui/Card";
 import { api, type Coordinator } from "@/lib/api-client";
-import { Plus, UserCheck, UserX, ChevronLeft, ChevronRight, KeyRound, Pencil, Trash2, AtSign } from "lucide-react";
+import { Plus, UserCheck, UserX, ChevronLeft, ChevronRight, KeyRound, Pencil, Trash2, AtSign, Sparkles } from "lucide-react";
 
 /* ─── Create/Update Coordinator Modal ──── */
 function CoordinatorModal({
@@ -378,6 +378,15 @@ export default function CoordinatorsPage() {
         }
     };
 
+    const toggleAiAccess = async (coord: Coordinator) => {
+        try {
+            await api.admin.toggleAiAccess(coord._id, !coord.aiAccessEnabled);
+            fetchCoordinators();
+        } catch {
+            /* no-op */
+        }
+    };
+
     const openEdit = (coord: Coordinator) => {
         setSelectedCoord(coord);
         setShowModal(true);
@@ -553,6 +562,14 @@ export default function CoordinatorsPage() {
                                                 title="Change Email"
                                             >
                                                 <AtSign className="h-4 w-4 text-gray-600" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => toggleAiAccess(c)}
+                                                title={c.aiAccessEnabled ? "Disable AI Access" : "Enable AI Access"}
+                                            >
+                                                <Sparkles className={`h-4 w-4 ${c.aiAccessEnabled ? "text-yellow-500" : "text-gray-400"}`} />
                                             </Button>
                                             <Button
                                                 variant="ghost"

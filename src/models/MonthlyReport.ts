@@ -6,6 +6,7 @@
      - "zonal"   → a coordinator's zonal monthly rollup
    ────────────────────────────────────────── */
 import mongoose, { Schema, Document, Model, Types, models } from "mongoose";
+import type { IZonalAuditReport } from "@/types/zonal-audit";
 
 export interface IMonthlyReport extends Document {
     type: "mentor" | "zonal";
@@ -14,6 +15,7 @@ export interface IMonthlyReport extends Document {
     state: string;
     month: string; // e.g., "2025-08"
     summaryText: string;
+    zonalAuditData?: IZonalAuditReport | null;
     weeklyReports: Types.ObjectId[];
     status: string;
     createdAt: Date;
@@ -28,6 +30,7 @@ const MonthlyReportSchema = new Schema<IMonthlyReport>(
         state: { type: String, required: true },
         month: { type: String, required: true },
         summaryText: { type: String, required: true, trim: true },
+        zonalAuditData: { type: Schema.Types.Mixed, default: null },
         weeklyReports: { type: [Schema.Types.ObjectId], ref: "WeeklyReport", default: [] },
         status: { type: String, enum: ["draft", "submitted"], default: "submitted" },
     },

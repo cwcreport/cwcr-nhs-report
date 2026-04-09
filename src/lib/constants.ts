@@ -93,3 +93,28 @@ export type ReportHistoryAction = (typeof ReportHistoryAction)[keyof typeof Repo
 // ─── Week Day Constants ─────────────────────
 export const REMINDER_DAY = 5; // Friday (0=Sun, 5=Fri)
 export const DIGEST_DAY = 1;   // Monday
+
+// ─── Team Lead Name ─────────────────────────
+export const TEAM_LEAD_NAME = "Constant Nosa Olotu";
+
+// ─── Geopolitical Zones ─────────────────────
+export const GEOPOLITICAL_ZONES: Record<string, string[]> = {
+  "North-Central": ["BENUE", "KOGI", "KWARA", "NASARAWA", "NIGER", "PLATEAU", "FCT"],
+  "North-East": ["ADAMAWA", "BAUCHI", "BORNO", "GOMBE", "TARABA", "YOBE"],
+  "North-West": ["JIGAWA", "KADUNA", "KANO", "KATSINA", "KEBBI", "SOKOTO", "ZAMFARA"],
+  "South-East": ["ABIA", "ANAMBRA", "EBONYI", "ENUGU", "IMO"],
+  "South-South": ["AKWA IBOM", "BAYELSA", "CROSS RIVER", "DELTA", "EDO", "RIVERS"],
+  "South-West": ["EKITI", "LAGOS", "OGUN", "ONDO", "OSUN", "OYO"],
+} as const;
+
+export function getZoneForState(state: string): string | null {
+  const upper = state.toUpperCase();
+  for (const [zone, states] of Object.entries(GEOPOLITICAL_ZONES)) {
+    if (states.includes(upper)) return zone;
+  }
+  return null;
+}
+
+export function getStatesInZone(zoneName: string): string[] {
+  return GEOPOLITICAL_ZONES[zoneName] ?? [];
+}

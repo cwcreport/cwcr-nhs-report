@@ -4,6 +4,7 @@
    ────────────────────────────────────────── */
 
 import type { ReportHistoryReportType, ReportHistoryAction } from "@/lib/constants";
+import type { IZonalAuditReport } from "@/types/zonal-audit";
 
 class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -237,6 +238,8 @@ export const api = {
         request<MonthlyReport>("/api/reports/monthly", { method: "POST", body: JSON.stringify(data) }),
       delete: (id: string) =>
         request<{ message: string }>(`/api/reports/monthly/${id}`, { method: "DELETE" }),
+      generateAI: (data: { month: string }) =>
+        request<IZonalAuditReport>("/api/reports/monthly/generate-ai", { method: "POST", body: JSON.stringify(data) }),
     },
 
     fellowMonthly: {
@@ -339,7 +342,13 @@ export const api = {
     clear: () =>
       request<{ message: string }>("/api/admin/integration-logs?confirm=yes", { method: "DELETE" }),
   },
-};
+  admin: {
+    toggleAiAccess: (userId: string, enabled: boolean) =>
+      request<{ _id: string; name: string; email: string; role: string; aiAccessEnabled: boolean }>(
+        `/api/admin/users/${userId}/ai-access`,
+        { method: "PATCH", body: JSON.stringify({ aiAccessEnabled: enabled }) },
+      ),
+  },};
 
 // ─── Types ──────────────────────────────────
 export interface PaginatedResponse<T> {
@@ -410,6 +419,7 @@ export interface Coordinator {
   active: boolean;
   createdAt: string;
   coordinatorId?: string;
+  aiAccessEnabled?: boolean;
 }
 
 export interface CreateCoordinatorInput {
@@ -649,6 +659,7 @@ export interface MonthlyReport {
   state: string;
   month: string;
   summaryText: string;
+  zonalAuditData?: IZonalAuditReport | null;
   weeklyReports: Report[];
   status: string;
   createdAt: string;
@@ -665,6 +676,7 @@ export function monthlyReportAuthorName(r: MonthlyReport): string {
 export interface CreateMonthlyReportInput {
   month: string;
   summaryText: string;
+  zonalAuditData?: IZonalAuditReport;
 }
 
 export interface MentorMonthlyReport {

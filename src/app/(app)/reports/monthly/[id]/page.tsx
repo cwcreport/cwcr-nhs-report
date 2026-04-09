@@ -18,6 +18,7 @@ import jsPDF from "jspdf";
 import { weekRangeLabelFromDate } from "@/lib/date-helpers";
 import { useSession } from "next-auth/react";
 import { UserRole } from "@/lib/constants";
+import ZonalAuditPreview from "@/components/reports/ZonalAuditPreview";
 
 export default function MonthlyReportDetailPage() {
     const { id } = useParams() as { id: string };
@@ -165,6 +166,13 @@ export default function MonthlyReportDetailPage() {
                         <div className="prose max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed">
                             {report.summaryText}
                         </div>
+
+                        {report.zonalAuditData && (
+                            <div className="mt-6 pt-6 border-t border-gray-200">
+                                <h3 className="text-lg font-bold text-gray-900 mb-4">AI-Generated Zonal Audit</h3>
+                                <ZonalAuditPreview data={report.zonalAuditData} readOnly />
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 

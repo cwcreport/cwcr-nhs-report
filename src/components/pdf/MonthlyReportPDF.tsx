@@ -13,8 +13,9 @@ import {
     Font,
 } from "@react-pdf/renderer";
 import type { Report, MentorshipSessionInput as Session } from "@/lib/api-client";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME, TEAM_LEAD_NAME } from "@/lib/constants";
 import { weekRangeLabelFromWeekKey } from "@/lib/date-helpers";
+import type { IZonalAuditReport } from "@/types/zonal-audit";
 
 /* ── Register a clean font (Helvetica built-in) ─── */
 Font.register({
@@ -188,9 +189,10 @@ function removeDuplicates<T>(arr: T[], keyFn: (item: T) => string): T[] {
 interface MonthlyReportPDFProps {
     reports: Report[];
     monthLabel: string; // e.g. "February 2026"
+    zonalAuditData?: IZonalAuditReport | null;
 }
 
-export function MonthlyReportPDF({ reports, monthLabel }: MonthlyReportPDFProps) {
+export function MonthlyReportPDF({ reports, monthLabel, zonalAuditData }: MonthlyReportPDFProps) {
     if (!reports || reports.length === 0) {
         return (
             <Document>
@@ -329,6 +331,109 @@ export function MonthlyReportPDF({ reports, monthLabel }: MonthlyReportPDFProps)
                     <PageFooter />
                 </Page>
             ))}
+
+            {/* ── Zonal Audit Pages (AI-generated) ── */}
+            {zonalAuditData && (
+                <>
+                    {/* Title Page */}
+                    <Page size="A4" style={s.page}>
+                        <Text style={s.coverTitle}>
+                            Zonal Performance Audit Report
+                        </Text>
+                        <Text style={s.coverDate}>
+                            {zonalAuditData.zoneName} — {zonalAuditData.reportingPeriod}
+                        </Text>
+
+                        <View style={s.hr} />
+
+                        <View style={s.toBlock}>
+                            <Text style={s.label}>To:</Text>
+                            <Text>{TEAM_LEAD_NAME}</Text>
+                            <Text>Team Research Lead</Text>
+                            <Text>NHF Mentorship Program</Text>
+                        </View>
+
+                        <Text style={s.bodyText}>
+                            This AI-generated zonal performance audit covers {zonalAuditData.totalLGAs} LGA(s)
+                            and {zonalAuditData.activeFellows} active fellow(s) for the reporting period.
+                        </Text>
+
+                        <View style={s.hr} />
+
+                        {/* Section 1: State Executive Briefs */}
+                        <Text style={s.sectionTitle}>Section 1: State Executive Briefs</Text>
+                        {zonalAuditData.stateExecutiveBriefs?.map((seb, i) => (
+                            <View key={i} style={{ marginBottom: 10 }}>
+                                <Text style={{ fontWeight: "bold", marginBottom: 2 }}>{seb.stateName}</Text>
+                                <Text style={s.bodyText}>{seb.brief}</Text>
+                            </View>
+                        ))}
+
+                        <PageFooter />
+                    </Page>
+
+                    {/* Leadership Board Page */}
+                    <Page size="A4" style={s.page}>
+                        <Text style={s.sessionHeader}>Section 2: Zonal Leadership Board</Text>
+
+                        <Text style={s.sectionTitle}>Top Performing LGAs</Text>
+                        {zonalAuditData.zonalLeadershipBoard?.topLGAs?.map((entry, i) => (
+                            <View key={i} style={s.fieldRow}>
+                                <Text style={{ width: 30 }}>#{entry.rank}</Text>
+                                <Text style={{ flex: 1 }}>{entry.lgaName} ({entry.state})</Text>
+                                <Text style={{ width: 80, textAlign: "right" }}>{entry.kpi}</Text>
+                            </View>
+                        ))}
+
+                        <View style={s.hr} />
+
+                        <Text style={s.sectionTitle}>Bottom LGAs (Areas for Improvement)</Text>
+                        {zonalAuditData.zonalLeadershipBoard?.bottomLGAs?.map((entry, i) => (
+                            <View key={i} style={s.fieldRow}>
+                                <Text style={{ width: 30 }}>#{entry.rank}</Text>
+                                <Text style={{ flex: 1 }}>{entry.lgaName} ({entry.state})</Text>
+                                <Text style={{ width: 140, textAlign: "right", fontSize: 9 }}>{entry.areaForImprovement}</Text>
+                            </View>
+                        ))}
+
+                        <PageFooter />
+                    </Page>
+
+                    {/* Operational Insights & Recommendations Page */}
+                    <Page size="A4" style={s.page}>
+                        <Text style={s.sessionHeader}>Section 3: Operational Insights</Text>
+
+                        <Text style={s.sectionTitle}>Progress of Zone</Text>
+                        <Text style={s.bodyText}>{zonalAuditData.operationalInsights?.progressOfZone}</Text>
+
+                        {zonalAuditData.operationalInsights?.challengesIdentified?.length > 0 && (
+                            <>
+                                <Text style={s.sectionTitle}>Challenges Identified</Text>
+                                <BulletList items={zonalAuditData.operationalInsights.challengesIdentified} />
+                            </>
+                        )}
+
+                        {zonalAuditData.operationalInsights?.solutionsProffered && (
+                            <>
+                                <Text style={s.sectionTitle}>Solutions Proffered</Text>
+                                <Text style={s.bodyText}>{zonalAuditData.operationalInsights.solutionsProffered}</Text>
+                            </>
+                        )}
+
+                        <View style={s.hr} />
+
+                        <Text style={s.sessionHeader}>Section 4: Strategic Recommendations</Text>
+
+                        <Text style={s.sectionTitle}>Coordinator Directive</Text>
+                        <Text style={s.bodyText}>{zonalAuditData.strategicRecommendations?.coordinatorDirective}</Text>
+
+                        <Text style={s.sectionTitle}>Team Lead Commendation</Text>
+                        <Text style={s.bodyText}>{zonalAuditData.strategicRecommendations?.teamLeadCommendation}</Text>
+
+                        <PageFooter />
+                    </Page>
+                </>
+            )}
         </Document>
     );
 }

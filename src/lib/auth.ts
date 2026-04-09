@@ -19,6 +19,7 @@ declare module "next-auth" {
       state?: string;
       states?: string[];
       profileImage?: string;
+      aiAccessEnabled?: boolean;
     };
   }
 
@@ -28,6 +29,7 @@ declare module "next-auth" {
     state?: string;
     states?: string[];
     profileImage?: string;
+    aiAccessEnabled?: boolean;
   }
 }
 
@@ -39,6 +41,7 @@ declare module "next-auth" {
     state?: string;
     states?: string[];
     profileImage?: string;
+    aiAccessEnabled?: boolean;
   }
 }
 
@@ -90,6 +93,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           state: userStates?.[0],
           states: userStates,
           profileImage: user.profileImage,
+          aiAccessEnabled: user.aiAccessEnabled ?? false,
         };
       },
     }),
@@ -103,6 +107,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.state = user.state;
         token.states = user.states;
         token.profileImage = user.profileImage;
+        token.aiAccessEnabled = user.aiAccessEnabled;
       }
 
       // When session.update() is called, refresh mutable fields from DB
@@ -128,6 +133,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       session.user.state = token.state as string;
       session.user.states = token.states as string[] | undefined;
       session.user.profileImage = token.profileImage as string | undefined;
+      session.user.aiAccessEnabled = token.aiAccessEnabled as boolean | undefined;
       return session;
     },
   },

@@ -126,7 +126,7 @@ export async function POST(request: Request) {
 
         await connectDB();
         const body = await request.json();
-        const { month, summaryText } = body;
+        const { month, summaryText, zonalAuditData } = body;
 
         if (!month || !summaryText) {
             return NextResponse.json({ error: "Month (YYYY-MM) and summaryText are required." }, { status: 400 });
@@ -195,6 +195,7 @@ export async function POST(request: Request) {
             state: stateToSave,
             month,
             summaryText,
+            zonalAuditData: zonalAuditData || null,
             weeklyReports: weeklyReports.map((wr) => wr._id),
             status: "submitted",
         });

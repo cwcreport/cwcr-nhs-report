@@ -13,6 +13,7 @@ export interface IUser extends Document {
   rootAdmin?: boolean;
   profileImage?: string;
   active: boolean;
+  aiAccessEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +38,7 @@ const UserSchema = new Schema<IUser>(
     rootAdmin: { type: Boolean, default: false },
     profileImage: { type: String },
     active: { type: Boolean, default: true },
+    aiAccessEnabled: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

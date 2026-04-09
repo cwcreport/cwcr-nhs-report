@@ -11,17 +11,21 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
 import { api } from "@/lib/api-client";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Sparkles, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useSession } from "next-auth/react";
 import { UserRole } from "@/lib/constants";
+import type { IZonalAuditReport } from "@/types/zonal-audit";
+import ZonalAuditPreview from "@/components/reports/ZonalAuditPreview";
 
 export default function NewMonthlyReportPage() {
     const router = useRouter();
     const { data: session } = useSession();
     const userRole = session?.user?.role;
     const isMentor = userRole === UserRole.MENTOR;
+    const isCoordinator = userRole === UserRole.COORDINATOR;
+    const canUseAI = isCoordinator && session?.user?.aiAccessEnabled === true;
 
     // Default to current month e.g., "2025-08"
     const [month, setMonth] = useState(format(new Date(), "yyyy-MM"));
@@ -29,13 +33,35 @@ export default function NewMonthlyReportPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
+    // AI generation state
+    const [aiLoading, setAiLoading] = useState(false);
+    const [zonalAuditData, setZonalAuditData] = useState<IZonalAuditReport | null>(null);
+
+    const handleGenerateAI = async () => {
+        if (!month) return;
+        setError("");
+        setAiLoading(true);
+        try {
+            const result = await api.reports.monthly.generateAI({ month });
+            setZonalAuditData(result);
+        } catch (err: any) {
+            setError(err.message || "AI generation failed. Please try again.");
+        } finally {
+            setAiLoading(false);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
         setLoading(true);
 
         try {
-            const res = await api.reports.monthly.create({ month, summaryText });
+            const res = await api.reports.monthly.create({
+                month,
+                summaryText,
+                ...(zonalAuditData ? { zonalAuditData } : {}),
+            });
             router.push(`/reports/monthly/${res._id}`);
         } catch (err: any) {
             setError(err.message || "Failed to create report.");
@@ -83,6 +109,60 @@ export default function NewMonthlyReportPage() {
                                 required
                             />
                         </div>
+
+                        {/* AI Generation Section (coordinators with AI access) */}
+                        {canUseAI && (
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <label className="text-sm font-medium text-gray-700">AI-Powered Zonal Audit</label>
+                                        <p className="text-xs text-gray-500">
+                                            Use Gemini AI to analyse mentor reports and generate a structured zonal performance audit.
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={aiLoading || !month}
+                                        onClick={handleGenerateAI}
+                                        className="shrink-0"
+                                    >
+                                        {aiLoading ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                                Generating&hellip;
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Sparkles className="h-4 w-4 mr-1 text-yellow-500" />
+                                                {zonalAuditData ? "Regenerate" : "Generate with AI"}
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+
+                                {zonalAuditData && (
+                                    <div className="rounded-lg border border-green-200 bg-green-50/40 p-4">
+                                        <div className="mb-3 flex items-center justify-between">
+                                            <span className="text-xs font-semibold uppercase tracking-wider text-green-700">
+                                                AI-Generated Zonal Audit Preview
+                                            </span>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-red-500 text-xs"
+                                                onClick={() => setZonalAuditData(null)}
+                                            >
+                                                Discard
+                                            </Button>
+                                        </div>
+                                        <ZonalAuditPreview data={zonalAuditData} readOnly />
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className="space-y-1">
                             <label className="text-sm font-medium text-gray-700">Monthly Summary</label>

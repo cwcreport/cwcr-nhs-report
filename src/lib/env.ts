@@ -46,4 +46,7 @@ export const env = {
       .map((e) => e.trim())
       .filter(Boolean),
   TIMEZONE: () => getEnvVar("TIMEZONE", "Africa/Lagos"),
+
+  // AI (Gemini)
+  GEMINI_API_KEY: () => getEnvVar("GEMINI_API_KEY", ""),
 } as const;
