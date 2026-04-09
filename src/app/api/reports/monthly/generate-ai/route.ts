@@ -206,7 +206,22 @@ export const POST = withExceptionLog(
     const period = format(parsedDate, "MMMM, yyyy");
 
     /* ── Call Gemini ───────────────────────── */
-    const auditReport = await generateZonalAudit(aggregatedPayload, zoneName, period);
+    let auditReport;
+    try {
+      auditReport = await generateZonalAudit(aggregatedPayload, zoneName, period);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("429") || msg.includes("quota") || msg.includes("credits")) {
+        return jsonError(
+          "AI service quota exceeded. Please try again later or contact an administrator.",
+          503,
+        );
+      }
+      if (msg.includes("403") || msg.includes("API_KEY")) {
+        return jsonError("AI service authentication failed. Please contact an administrator.", 503);
+      }
+      throw err; // re-throw for withExceptionLog to handle
+    }
 
     /* ── Log activity ─────────────────────── */
     void logActivity({
