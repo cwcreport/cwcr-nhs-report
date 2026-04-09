@@ -25,6 +25,9 @@ import {
   Activity,
   AlertOctagon,
   Link2,
+  X,
+  Copy,
+  Check,
 } from "lucide-react";
 
 /* ─── Helpers ───────────────────────────── */
@@ -228,8 +231,16 @@ function ExceptionLogsTab() {
   const [message, setMessage] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [selectedLog, setSelectedLog] = useState<ExceptionLog | null>(null);
+  const [copied, setCopied] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+
+  const copyStack = async () => {
+    if (!selectedLog?.stack) return;
+    await navigator.clipboard.writeText(selectedLog.stack);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const fetch = useCallback(async () => {
     setLoading(true);
@@ -305,16 +316,11 @@ function ExceptionLogsTab() {
                   {log.stack ? (
                     <button
                       className="text-xs text-blue-600 underline"
-                      onClick={() => setExpanded(expanded === log._id ? null : log._id)}
+                      onClick={() => { setSelectedLog(log); setCopied(false); }}
                     >
-                      {expanded === log._id ? "Hide" : "Show"}
+                      Show
                     </button>
                   ) : <span className="text-gray-400 text-xs">—</span>}
-                  {expanded === log._id && (
-                    <pre className="mt-2 text-xs bg-gray-100 rounded p-2 overflow-x-auto max-w-xl whitespace-pre-wrap break-all">
-                      {log.stack}
-                    </pre>
-                  )}
                 </td>
               </tr>
             ))}
@@ -323,6 +329,79 @@ function ExceptionLogsTab() {
       </div>
       <Pagination page={page} totalPages={totalPages} total={total}
         onPrev={() => setPage((p) => p - 1)} onNext={() => setPage((p) => p + 1)} />
+
+      {/* ── Exception Detail Modal ── */}
+      {selectedLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setSelectedLog(null)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col mx-4" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">Exception Details</h3>
+              <button onClick={() => setSelectedLog(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-4 overflow-y-auto space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-gray-500 text-xs mb-1">Time</p>
+                  <p className="font-medium">{fmt(selectedLog.createdAt)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs mb-1">Context</p>
+                  <p className="font-mono text-indigo-700">{selectedLog.context}</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 text-xs mb-1">Actor</p>
+                  <p>{selectedLog.actorName || "—"}{selectedLog.actorRole ? ` (${selectedLog.actorRole})` : ""}</p>
+                </div>
+                {selectedLog.request?.method && (
+                  <div>
+                    <p className="text-gray-500 text-xs mb-1">Request</p>
+                    <p className="font-mono text-xs">{selectedLog.request.method} {selectedLog.request.url}</p>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-gray-500 text-xs mb-1">Message</p>
+                <p className="text-red-700">{selectedLog.message}</p>
+              </div>
+
+              {selectedLog.stack && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-gray-500 text-xs">Stack Trace</p>
+                    <button onClick={copyStack} className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 transition-colors">
+                      {copied ? <><Check className="h-3.5 w-3.5 text-green-600" /><span className="text-green-600">Copied!</span></>
+                        : <><Copy className="h-3.5 w-3.5" /><span>Copy</span></>}
+                    </button>
+                  </div>
+                  <pre className="text-xs bg-gray-100 rounded p-3 overflow-x-auto whitespace-pre-wrap break-all max-h-64 overflow-y-auto">
+                    {selectedLog.stack}
+                  </pre>
+                </div>
+              )}
+
+              {selectedLog.meta && Object.keys(selectedLog.meta).length > 0 && (
+                <div>
+                  <p className="text-gray-500 text-xs mb-1">Meta</p>
+                  <pre className="text-xs bg-gray-100 rounded p-3 overflow-x-auto whitespace-pre-wrap break-all">
+                    {JSON.stringify(selectedLog.meta, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-3 border-t flex justify-end">
+              <Button variant="outline" size="sm" onClick={() => setSelectedLog(null)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
