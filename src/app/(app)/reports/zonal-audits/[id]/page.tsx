@@ -4,7 +4,7 @@
    ────────────────────────────────────────── */
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Header } from "@/components/layout";
 import { Button } from "@/components/ui/Button";
@@ -13,12 +13,11 @@ import { api, type SavedZonalAudit } from "@/lib/api-client";
 import { ChevronLeft, Download, Trash2 } from "lucide-react";
 import { safeFormatISO } from "@/lib/date-helpers";
 import Link from "next/link";
-import { format } from "date-fns";
-import { pdf } from "@react-pdf/renderer";
-import { MonthlyReportPDF } from "@/components/pdf/MonthlyReportPDF";
 import { useSession } from "next-auth/react";
 import { UserRole } from "@/lib/constants";
 import ZonalAuditPreview from "@/components/reports/ZonalAuditPreview";
+import { toPng } from "html-to-image";
+import { jsPDF } from "jspdf";
 
 export default function ZonalAuditDetailPage() {
     const { id } = useParams() as { id: string };
@@ -27,6 +26,7 @@ export default function ZonalAuditDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [pdfGenerating, setPdfGenerating] = useState(false);
+    const auditRef = useRef<HTMLDivElement>(null);
 
     const { data: session } = useSession();
     const canDelete = session?.user?.role === UserRole.COORDINATOR || session?.user?.role === UserRole.ADMIN;
@@ -48,21 +48,38 @@ export default function ZonalAuditDetailPage() {
     }, [fetchAudit]);
 
     const handleDownloadPDF = async () => {
-        if (!audit) return;
+        if (!audit || !auditRef.current) return;
         setPdfGenerating(true);
         try {
-            const monthLabel = format(new Date(audit.month + "-01"), "MMMM yyyy");
-            const blob = await pdf(
-                <MonthlyReportPDF reports={[]} monthLabel={monthLabel} zonalAuditData={audit.auditData} />
-            ).toBlob();
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = `Zonal_Audit_${audit.zoneName?.replace(/\s+/g, "_")}_${audit.month}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+            const element = auditRef.current;
+            const imgData = await toPng(element, { pixelRatio: 2 });
+
+            const img = new Image();
+            await new Promise<void>((resolve, reject) => {
+                img.onload = () => resolve();
+                img.onerror = () => reject(new Error("Failed to load generated image for PDF export"));
+                img.src = imgData;
+            });
+
+            const doc = new jsPDF("p", "mm", "a4");
+            const pdfWidth = doc.internal.pageSize.getWidth();
+            const pdfHeight = (img.naturalHeight * pdfWidth) / img.naturalWidth;
+            const pageHeight = doc.internal.pageSize.getHeight();
+
+            if (pdfHeight <= pageHeight) {
+                doc.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+            } else {
+                let position = 0;
+                let remaining = pdfHeight;
+                while (remaining > 0) {
+                    doc.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+                    remaining -= pageHeight;
+                    position -= pageHeight;
+                    if (remaining > 0) doc.addPage();
+                }
+            }
+
+            doc.save(`Zonal_Audit_${audit.zoneName?.replace(/\s+/g, "_")}_${audit.month}.pdf`);
         } catch (err) {
             console.error("PDF generation failed:", err);
         } finally {
@@ -115,6 +132,7 @@ export default function ZonalAuditDetailPage() {
             <Header title={`Zonal Audit: ${audit.zoneName}`} subtitle={`${displayMonth} — Coordinator: ${audit.coordinator?.name || "Unknown"}`} />
 
             <div className="p-6 max-w-4xl space-y-6">
+                <div ref={auditRef}>
                 <Card>
                     <CardHeader className="bg-blue-700 text-white rounded-t-xl pb-6">
                         <div className="flex justify-between items-start">
@@ -137,6 +155,7 @@ export default function ZonalAuditDetailPage() {
                         <ZonalAuditPreview data={audit.auditData} readOnly />
                     </CardContent>
                 </Card>
+                </div>
             </div>
         </>
     );

@@ -11,9 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
 import { api } from "@/lib/api-client";
-import { ChevronLeft, Sparkles, Loader2, Download, Save } from "lucide-react";
-import { pdf } from "@react-pdf/renderer";
-import { MonthlyReportPDF } from "@/components/pdf/MonthlyReportPDF";
+import { ChevronLeft, Sparkles, Loader2, Save, Eye } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useSession } from "next-auth/react";
@@ -38,9 +36,9 @@ export default function NewMonthlyReportPage() {
     // AI generation state
     const [aiLoading, setAiLoading] = useState(false);
     const [zonalAuditData, setZonalAuditData] = useState<IZonalAuditReport | null>(null);
-    const [pdfGenerating, setPdfGenerating] = useState(false);
     const [saving, setSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const [savedAuditId, setSavedAuditId] = useState<string | null>(null);
 
     const handleGenerateAI = async () => {
         if (!month) return;
@@ -56,37 +54,16 @@ export default function NewMonthlyReportPage() {
         }
     };
 
-    const handleDownloadPDF = async () => {
-        if (!zonalAuditData) return;
-        setPdfGenerating(true);
-        try {
-            const monthLabel = format(new Date(month + "-01"), "MMMM yyyy");
-            const blob = await pdf(
-                <MonthlyReportPDF reports={[]} monthLabel={monthLabel} zonalAuditData={zonalAuditData} />
-            ).toBlob();
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = `Zonal_Audit_${zonalAuditData.zoneName?.replace(/\s+/g, "_")}_${month}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        } catch (err) {
-            console.error("PDF generation failed:", err);
-        } finally {
-            setPdfGenerating(false);
-        }
-    };
-
     const handleSaveZonalAudit = async () => {
         if (!zonalAuditData || !month) return;
         setSaving(true);
         setSaveSuccess(false);
+        setSavedAuditId(null);
         setError("");
         try {
-            await api.reports.zonalAudits.save({ month, auditData: zonalAuditData });
+            const result = await api.reports.zonalAudits.save({ month, auditData: zonalAuditData });
             setSaveSuccess(true);
+            setSavedAuditId(result._id);
         } catch (err: any) {
             setError(err.message || "Failed to save zonal audit.");
         } finally {
@@ -192,17 +169,19 @@ export default function NewMonthlyReportPage() {
                                                 AI-Generated Zonal Audit Preview
                                             </span>
                                             <div className="flex items-center gap-2">
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="text-xs"
-                                                    disabled={pdfGenerating}
-                                                    onClick={handleDownloadPDF}
-                                                >
-                                                    <Download className="h-3.5 w-3.5 mr-1" />
-                                                    {pdfGenerating ? "Generating…" : "Download PDF"}
-                                                </Button>
+                                                {savedAuditId && (
+                                                    <Link href={`/reports/zonal-audits/${savedAuditId}`}>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-xs text-blue-700"
+                                                        >
+                                                            <Eye className="h-3.5 w-3.5 mr-1" />
+                                                            View
+                                                        </Button>
+                                                    </Link>
+                                                )}
                                                 <Button
                                                     type="button"
                                                     variant="ghost"
@@ -231,8 +210,12 @@ export default function NewMonthlyReportPage() {
 
                                 {saveSuccess && (
                                     <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm font-medium">
-                                        Zonal audit saved successfully. You can view it on the{" "}
-                                        <Link href="/reports/zonal-audits" className="underline font-semibold">Zonal Audits</Link> page.
+                                        Zonal audit saved successfully.{" "}
+                                        {savedAuditId ? (
+                                            <Link href={`/reports/zonal-audits/${savedAuditId}`} className="underline font-semibold">View saved audit</Link>
+                                        ) : (
+                                            <Link href="/reports/zonal-audits" className="underline font-semibold">View all audits</Link>
+                                        )}
                                     </div>
                                 )}
                             </div>
