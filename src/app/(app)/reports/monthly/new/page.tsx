@@ -11,7 +11,9 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Card, CardContent } from "@/components/ui/Card";
 import { api } from "@/lib/api-client";
-import { ChevronLeft, Sparkles, Loader2 } from "lucide-react";
+import { ChevronLeft, Sparkles, Loader2, Download } from "lucide-react";
+import { pdf } from "@react-pdf/renderer";
+import { MonthlyReportPDF } from "@/components/pdf/MonthlyReportPDF";
 import Link from "next/link";
 import { format } from "date-fns";
 import { useSession } from "next-auth/react";
@@ -36,6 +38,7 @@ export default function NewMonthlyReportPage() {
     // AI generation state
     const [aiLoading, setAiLoading] = useState(false);
     const [zonalAuditData, setZonalAuditData] = useState<IZonalAuditReport | null>(null);
+    const [pdfGenerating, setPdfGenerating] = useState(false);
 
     const handleGenerateAI = async () => {
         if (!month) return;
@@ -48,6 +51,29 @@ export default function NewMonthlyReportPage() {
             setError(err.message || "AI generation failed. Please try again.");
         } finally {
             setAiLoading(false);
+        }
+    };
+
+    const handleDownloadPDF = async () => {
+        if (!zonalAuditData) return;
+        setPdfGenerating(true);
+        try {
+            const monthLabel = format(new Date(month + "-01"), "MMMM yyyy");
+            const blob = await pdf(
+                <MonthlyReportPDF reports={[]} monthLabel={monthLabel} zonalAuditData={zonalAuditData} />
+            ).toBlob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `Zonal_Audit_${zonalAuditData.zoneName?.replace(/\s+/g, "_")}_${month}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error("PDF generation failed:", err);
+        } finally {
+            setPdfGenerating(false);
         }
     };
 
@@ -148,15 +174,28 @@ export default function NewMonthlyReportPage() {
                                             <span className="text-xs font-semibold uppercase tracking-wider text-green-700">
                                                 AI-Generated Zonal Audit Preview
                                             </span>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-red-500 text-xs"
-                                                onClick={() => setZonalAuditData(null)}
-                                            >
-                                                Discard
-                                            </Button>
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-xs"
+                                                    disabled={pdfGenerating}
+                                                    onClick={handleDownloadPDF}
+                                                >
+                                                    <Download className="h-3.5 w-3.5 mr-1" />
+                                                    {pdfGenerating ? "Generating…" : "Download PDF"}
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="text-red-500 text-xs"
+                                                    onClick={() => setZonalAuditData(null)}
+                                                >
+                                                    Discard
+                                                </Button>
+                                            </div>
                                         </div>
                                         <ZonalAuditPreview data={zonalAuditData} readOnly />
                                     </div>
