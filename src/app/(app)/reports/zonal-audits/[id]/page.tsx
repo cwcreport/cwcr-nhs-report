@@ -10,12 +10,13 @@ import { Header } from "@/components/layout";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card";
 import { api, type SavedZonalAudit } from "@/lib/api-client";
-import { ChevronLeft, Download, Trash2 } from "lucide-react";
+import { ChevronLeft, Download, Trash2, Pencil, Save, X } from "lucide-react";
 import { safeFormatISO } from "@/lib/date-helpers";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { UserRole } from "@/lib/constants";
 import ZonalAuditPreview from "@/components/reports/ZonalAuditPreview";
+import type { IZonalAuditReport } from "@/types/zonal-audit";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 
@@ -26,10 +27,14 @@ export default function ZonalAuditDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [pdfGenerating, setPdfGenerating] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editableData, setEditableData] = useState<IZonalAuditReport | null>(null);
+    const [saving, setSaving] = useState(false);
     const auditRef = useRef<HTMLDivElement>(null);
 
     const { data: session } = useSession();
-    const canDelete = session?.user?.role === UserRole.COORDINATOR || session?.user?.role === UserRole.ADMIN;
+    const canEdit = session?.user?.role === UserRole.COORDINATOR || session?.user?.role === UserRole.ADMIN;
+    const canDelete = canEdit;
 
     const fetchAudit = useCallback(async () => {
         try {
@@ -87,6 +92,32 @@ export default function ZonalAuditDetailPage() {
         }
     };
 
+    const handleStartEdit = () => {
+        if (!audit) return;
+        setEditableData(JSON.parse(JSON.stringify(audit.auditData)));
+        setIsEditing(true);
+    };
+
+    const handleCancelEdit = () => {
+        setIsEditing(false);
+        setEditableData(null);
+    };
+
+    const handleSave = async () => {
+        if (!editableData) return;
+        setSaving(true);
+        try {
+            const updated = await api.reports.zonalAudits.update(id, { auditData: editableData });
+            setAudit(updated);
+            setIsEditing(false);
+            setEditableData(null);
+        } catch (err: any) {
+            alert(`Failed to save: ${err.message}`);
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const handleDelete = async () => {
         if (!window.confirm("Are you sure you want to delete this zonal audit? This action cannot be undone.")) return;
         try {
@@ -116,15 +147,36 @@ export default function ZonalAuditDetailPage() {
                     </Button>
                 </Link>
                 <div className="flex gap-2">
-                    <Button onClick={handleDownloadPDF} disabled={pdfGenerating}>
-                        <Download className="h-4 w-4 mr-2" />
-                        {pdfGenerating ? "Generating PDF…" : "Download PDF"}
-                    </Button>
-                    {canDelete && (
-                        <Button variant="destructive" onClick={handleDelete}>
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                        </Button>
+                    {isEditing ? (
+                        <>
+                            <Button onClick={handleSave} disabled={saving}>
+                                <Save className="h-4 w-4 mr-2" />
+                                {saving ? "Saving…" : "Save Changes"}
+                            </Button>
+                            <Button variant="outline" onClick={handleCancelEdit} disabled={saving}>
+                                <X className="h-4 w-4 mr-2" />
+                                Cancel
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button onClick={handleDownloadPDF} disabled={pdfGenerating}>
+                                <Download className="h-4 w-4 mr-2" />
+                                {pdfGenerating ? "Generating PDF…" : "Download PDF"}
+                            </Button>
+                            {canEdit && (
+                                <Button variant="outline" onClick={handleStartEdit}>
+                                    <Pencil className="h-4 w-4 mr-2" />
+                                    Edit
+                                </Button>
+                            )}
+                            {canDelete && (
+                                <Button variant="destructive" onClick={handleDelete}>
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                </Button>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
@@ -152,7 +204,11 @@ export default function ZonalAuditDetailPage() {
                         </div>
                     </CardHeader>
                     <CardContent className="pt-6 bg-white rounded-b-xl">
-                        <ZonalAuditPreview data={audit.auditData} readOnly />
+                        <ZonalAuditPreview
+                            data={isEditing && editableData ? editableData : audit.auditData}
+                            readOnly={!isEditing}
+                            onChange={isEditing ? setEditableData : undefined}
+                        />
                     </CardContent>
                 </Card>
                 </div>

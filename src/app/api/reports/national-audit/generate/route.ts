@@ -1,16 +1,15 @@
 /* ──────────────────────────────────────────
-   POST /api/reports/monthly/generate-ai
-   Generates a structured zonal audit report
-   from MentorMonthlyReport data via Gemini.
+   POST /api/reports/national-audit/generate
+   Generates a National Federal Oversight Report
+   from all MentorMonthlyReport data via Gemini.
    ────────────────────────────────────────── */
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-guard";
 import { jsonOk, jsonError, parseBody, withExceptionLog } from "@/lib/api-helpers";
 import { logActivity } from "@/lib/activity-logger";
-import { getZoneForState } from "@/lib/constants";
-import { generateZonalAudit } from "@/lib/gemini";
-import { Coordinator } from "@/models/Coordinator";
+import { getZoneForState, GEOPOLITICAL_ZONES } from "@/lib/constants";
+import { generateNationalAudit } from "@/lib/gemini";
 import { Mentor } from "@/models/Mentor";
 import { Fellow } from "@/models/Fellow";
 import { MentorMonthlyReport } from "@/models/MentorMonthlyReport";
@@ -21,7 +20,7 @@ interface GenerateBody {
 }
 
 export const POST = withExceptionLog(
-  "POST /api/reports/monthly/generate-ai",
+  "POST /api/reports/national-audit/generate",
   async (req: NextRequest) => {
     /* ── Auth ──────────────────────────────── */
     const { session, error } = await requireAuth();
@@ -31,9 +30,8 @@ export const POST = withExceptionLog(
       return jsonError("AI access is not enabled for your account.", 403);
     }
 
-    const userRole = session!.user.role;
-    if (userRole !== "coordinator" && userRole !== "admin") {
-      return jsonError("Only coordinators and admins can generate AI reports.", 403);
+    if (session!.user.role !== "admin") {
+      return jsonError("Only admins can generate national audit reports.", 403);
     }
 
     /* ── Body ──────────────────────────────── */
@@ -44,33 +42,14 @@ export const POST = withExceptionLog(
 
     await connectDB();
 
-    /* ── Coordinator doc ───────────────────── */
-    const coordinatorDoc = await Coordinator.findOne({ authId: session!.user.id });
-    if (!coordinatorDoc) {
-      return jsonError("Coordinator profile not found.", 404);
-    }
-
-    const coordinatorStates = coordinatorDoc.states; // uppercase
-    if (!coordinatorStates.length) {
-      return jsonError("Coordinator has no assigned states.", 400);
-    }
-
-    /* ── Derive zone(s) ───────────────────── */
-    const zoneSet = new Set<string>();
-    for (const st of coordinatorStates) {
-      const z = getZoneForState(st);
-      if (z) zoneSet.add(z);
-    }
-    const zoneName = zoneSet.size > 0 ? [...zoneSet].join(" / ") : "Unknown Zone";
-
-    /* ── Mentors under this coordinator ───── */
-    const mentors = await Mentor.find({ coordinator: coordinatorDoc._id })
+    /* ── All mentors ──────────────────────── */
+    const mentors = await Mentor.find({})
       .populate("authId", "name email")
       .lean();
     const mentorIds = mentors.map((m) => m._id);
 
     if (!mentorIds.length) {
-      return jsonError("No mentors found under this coordinator.", 400);
+      return jsonError("No mentors found in the system.", 400);
     }
 
     /* ── MentorMonthlyReports for the month ─ */
@@ -91,7 +70,6 @@ export const POST = withExceptionLog(
     const fellows = await Fellow.find({ mentor: { $in: mentorIds } }).lean();
 
     /* ── Build aggregated data payload ─────── */
-    // Map mentor IDs to their info for lookup
     const mentorMap = new Map(
       mentors.map((m) => [
         m._id.toString(),
@@ -103,63 +81,71 @@ export const POST = withExceptionLog(
       ]),
     );
 
-    // Group fellows by state → LGA
-    const fellowsByStateLGA: Record<string, Record<string, number>> = {};
+    // Group fellows by zone → state → LGA
+    const fellowsByZoneStateLGA: Record<string, Record<string, Record<string, number>>> = {};
     for (const f of fellows) {
-      // Determine the state via the fellow's mentor
       const mentorInfo = mentorMap.get(f.mentor.toString());
       const state = mentorInfo?.states?.[0] ?? "UNKNOWN";
-      if (!fellowsByStateLGA[state]) fellowsByStateLGA[state] = {};
+      const zone = getZoneForState(state) ?? "Unknown Zone";
+      if (!fellowsByZoneStateLGA[zone]) fellowsByZoneStateLGA[zone] = {};
+      if (!fellowsByZoneStateLGA[zone][state]) fellowsByZoneStateLGA[zone][state] = {};
       const lga = f.lga || "UNKNOWN";
-      fellowsByStateLGA[state][lga] = (fellowsByStateLGA[state][lga] || 0) + 1;
+      fellowsByZoneStateLGA[zone][state][lga] = (fellowsByZoneStateLGA[zone][state][lga] || 0) + 1;
     }
 
-    // Count total unique LGAs and active fellows
+    // Count totals
     const allLGAs = new Set<string>();
-    for (const stateObj of Object.values(fellowsByStateLGA)) {
-      for (const lga of Object.keys(stateObj)) {
-        allLGAs.add(lga);
+    for (const zoneObj of Object.values(fellowsByZoneStateLGA)) {
+      for (const stateObj of Object.values(zoneObj)) {
+        for (const lga of Object.keys(stateObj)) {
+          allLGAs.add(lga);
+        }
       }
     }
 
-    // Group reports by state → LGA
-    const stateData: Record<
+    // Group reports by zone → state
+    const zoneData: Record<
       string,
-      {
-        mentors: Set<string>;
-        fellows: Set<string>;
-        reports: Array<{
-          mentorName: string;
-          fellowName: string;
-          fellowLGA: string;
-          fellowQualification: string;
-          sessionsHeld: number;
-          sessionsAttended: number;
-          sessionsAbsent: number;
-          summaryLearning: string;
-          summaryPhcVisits: string;
-          summaryActivities: string;
-          summaryGrowth: string;
-          summaryImpact: string;
-          challenges: string[];
-          recommendations: string[];
-          achievements: string;
-          progressRating: string;
-        }>;
-      }
+      Record<
+        string,
+        {
+          mentors: Set<string>;
+          fellows: Set<string>;
+          reports: Array<{
+            mentorName: string;
+            fellowName: string;
+            fellowLGA: string;
+            fellowQualification: string;
+            sessionsHeld: number;
+            sessionsAttended: number;
+            sessionsAbsent: number;
+            summaryLearning: string;
+            summaryPhcVisits: string;
+            summaryActivities: string;
+            summaryGrowth: string;
+            summaryImpact: string;
+            challenges: string[];
+            recommendations: string[];
+            achievements: string;
+            progressRating: string;
+          }>;
+        }
+      >
     > = {};
 
     for (const r of reports) {
       const mentorInfo = mentorMap.get(r.mentor.toString());
       const state = mentorInfo?.states?.[0] ?? "UNKNOWN";
+      const zone = getZoneForState(state) ?? "Unknown Zone";
 
-      if (!stateData[state]) {
-        stateData[state] = { mentors: new Set(), fellows: new Set(), reports: [] };
+      if (!zoneData[zone]) zoneData[zone] = {};
+      if (!zoneData[zone][state]) {
+        zoneData[zone][state] = { mentors: new Set(), fellows: new Set(), reports: [] };
       }
 
-      stateData[state].mentors.add(r.mentor.toString());
-      stateData[state].fellows.add(r.fellow.toString());
-      stateData[state].reports.push({
+      zoneData[zone][state].mentors.add(r.mentor.toString());
+      zoneData[zone][state].fellows.add(r.fellow.toString());
+      zoneData[zone][state].reports.push({
         mentorName: mentorInfo?.name ?? "Unknown",
         fellowName: r.fellowName,
         fellowLGA: r.fellowLGA,
@@ -179,25 +165,51 @@ export const POST = withExceptionLog(
       });
     }
 
-    // Convert sets to counts for the AI payload
+    // Build national-level aggregated payload
+    const zoneNames = Object.keys(GEOPOLITICAL_ZONES);
     const aggregatedPayload = {
-      zoneName,
-      coordinatorStates,
       totalLGAs: allLGAs.size,
-      activeFellows: fellows.length,
+      totalActiveFellows: fellows.length,
       totalMentors: mentors.length,
       totalReports: reports.length,
-      states: Object.fromEntries(
-        Object.entries(stateData).map(([state, data]) => [
-          state,
-          {
-            mentorCount: data.mentors.size,
-            fellowCount: data.fellows.size,
-            reportCount: data.reports.length,
-            fellowsByLGA: fellowsByStateLGA[state] || {},
-            reports: data.reports,
-          },
-        ]),
+      totalStates: new Set(
+        mentors.flatMap((m) => m.states),
+      ).size,
+      zones: Object.fromEntries(
+        zoneNames.map((zoneName) => {
+          const statesInZone = zoneData[zoneName] ?? {};
+          let zoneMentorCount = 0;
+          let zoneFellowCount = 0;
+          let zoneReportCount = 0;
+
+          const statesPayload = Object.fromEntries(
+            Object.entries(statesInZone).map(([state, data]) => {
+              zoneMentorCount += data.mentors.size;
+              zoneFellowCount += data.fellows.size;
+              zoneReportCount += data.reports.length;
+              return [
+                state,
+                {
+                  mentorCount: data.mentors.size,
+                  fellowCount: data.fellows.size,
+                  reportCount: data.reports.length,
+                  fellowsByLGA: fellowsByZoneStateLGA[zoneName]?.[state] ?? {},
+                  reports: data.reports,
+                },
+              ];
+            }),
+          );
+
+          return [
+            zoneName,
+            {
+              mentorCount: zoneMentorCount,
+              fellowCount: zoneFellowCount,
+              reportCount: zoneReportCount,
+              states: statesPayload,
+            },
+          ];
+        }),
       ),
     };
 
@@ -208,7 +220,7 @@ export const POST = withExceptionLog(
     /* ── Call Gemini ───────────────────────── */
     let auditReport;
     try {
-      auditReport = await generateZonalAudit(aggregatedPayload, zoneName, period, session!.user.name);
+      auditReport = await generateNationalAudit(aggregatedPayload, period);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("429") || msg.includes("quota") || msg.includes("credits")) {
@@ -226,20 +238,19 @@ export const POST = withExceptionLog(
       if (msg.includes("403") || msg.includes("API_KEY")) {
         return jsonError("AI service authentication failed. Please contact an administrator.", 503);
       }
-      throw err; // re-throw for withExceptionLog to handle
+      throw err;
     }
 
     /* ── Log activity ─────────────────────── */
     void logActivity({
       session: session!,
-      action: "generate_ai_zonal_audit",
-      targetType: "MonthlyReport",
-      targetName: `${zoneName} - ${period}`,
+      action: "generate_national_audit",
+      targetType: "NationalAudit",
+      targetName: `National Audit - ${period}`,
       meta: {
         month: body.month,
-        zone: zoneName,
-        states: coordinatorStates,
         reportCount: reports.length,
+        zoneCount: Object.keys(zoneData).length,
       },
     });
 

@@ -5,6 +5,7 @@
 
 import type { ReportHistoryReportType, ReportHistoryAction } from "@/lib/constants";
 import type { IZonalAuditReport } from "@/types/zonal-audit";
+import type { INationalAuditReport } from "@/types/national-audit";
 
 class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -266,6 +267,20 @@ export const api = {
         request<SavedZonalAudit>("/api/reports/zonal-audits", { method: "POST", body: JSON.stringify(data) }),
       delete: (id: string) =>
         request<{ message: string }>(`/api/reports/zonal-audits/${id}`, { method: "DELETE" }),
+      update: (id: string, data: { auditData: IZonalAuditReport }) =>
+        request<SavedZonalAudit>(`/api/reports/zonal-audits/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    },
+
+    nationalAudit: {
+      list: (params?: URLSearchParams | Record<string, string>) =>
+        request<PaginatedResponse<SavedNationalAudit>>(`/api/reports/national-audit?${new URLSearchParams(params).toString()}`),
+      get: (id: string) => request<SavedNationalAudit>(`/api/reports/national-audit/${id}`),
+      save: (data: CreateSavedNationalAuditInput) =>
+        request<SavedNationalAudit>("/api/reports/national-audit", { method: "POST", body: JSON.stringify(data) }),
+      delete: (id: string) =>
+        request<{ message: string }>(`/api/reports/national-audit/${id}`, { method: "DELETE" }),
+      generate: (data: { month: string }) =>
+        request<INationalAuditReport>("/api/reports/national-audit/generate", { method: "POST", body: JSON.stringify(data) }),
     },
   },
 
@@ -701,6 +716,19 @@ export interface SavedZonalAudit {
 export interface CreateSavedZonalAuditInput {
   month: string;
   auditData: IZonalAuditReport;
+}
+
+export interface SavedNationalAudit {
+  _id: string;
+  generatedBy: { _id: string; name: string; email: string };
+  month: string;
+  auditData: INationalAuditReport;
+  createdAt: string;
+}
+
+export interface CreateSavedNationalAuditInput {
+  month: string;
+  auditData: INationalAuditReport;
 }
 
 export interface MentorMonthlyReport {

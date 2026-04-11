@@ -18,3 +18,4 @@ export { ActivityLog, type IActivityLog } from "./ActivityLog";
 export { ExceptionLog, type IExceptionLog } from "./ExceptionLog";
 export { IntegrationLog, type IIntegrationLog } from "./IntegrationLog";
 export { SavedZonalAudit, type ISavedZonalAudit } from "./SavedZonalAudit";
+export { SavedNationalAudit, type ISavedNationalAudit } from "./SavedNationalAudit";

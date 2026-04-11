@@ -122,3 +122,73 @@ export async function DELETE(
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+
+export async function PATCH(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const { id } = await params;
+    try {
+        const session = await auth();
+        if (!session?.user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const role = session.user.role;
+        if (role !== UserRole.ADMIN && role !== UserRole.COORDINATOR) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const body = await request.json();
+        if (!body?.auditData || typeof body.auditData !== "object") {
+            return NextResponse.json({ error: "auditData is required" }, { status: 400 });
+        }
+
+        await connectDB();
+        const audit = await SavedZonalAudit.findById(id);
+        if (!audit) {
+            return NextResponse.json({ error: "Zonal audit not found" }, { status: 404 });
+        }
+
+        if (role === UserRole.COORDINATOR) {
+            const coordDoc = await Coordinator.findOne({ authId: session.user.id });
+            if (!coordDoc || audit.coordinator?.toString() !== coordDoc._id.toString()) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+        }
+
+        audit.auditData = body.auditData;
+        await audit.save();
+
+        // Re-fetch with populated coordinator for normalized response
+        const updated = await SavedZonalAudit.findById(id)
+            .populate({
+                path: "coordinator",
+                populate: { path: "authId", select: "name email" },
+            })
+            .lean();
+
+        const normalized: any = { ...updated };
+        if ((updated as any)?.coordinator?.authId) {
+            const c = (updated as any).coordinator;
+            normalized.coordinator = {
+                _id: c._id,
+                name: c.authId?.name,
+                email: c.authId?.email,
+                state: c.states?.[0] ?? "",
+            };
+        }
+
+        void logActivity({
+            session,
+            action: "UPDATE_ZONAL_AUDIT",
+            targetType: "SavedZonalAudit",
+            targetId: id,
+            targetName: `${audit.zoneName} – ${audit.month}`,
+        });
+
+        return NextResponse.json(normalized);
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
