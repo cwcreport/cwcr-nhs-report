@@ -8,7 +8,7 @@ import { connectDB } from "@/lib/db";
 import { requireAuth } from "@/lib/auth-guard";
 import { jsonOk, jsonError, parseBody, withExceptionLog } from "@/lib/api-helpers";
 import { logActivity } from "@/lib/activity-logger";
-import { getZoneForState } from "@/lib/constants";
+import { getZoneForState, getStateForLGA } from "@/lib/constants";
 import { generateZonalAudit } from "@/lib/gemini";
 import { Coordinator } from "@/models/Coordinator";
 import { Mentor } from "@/models/Mentor";
@@ -106,9 +106,9 @@ export const POST = withExceptionLog(
     // Group fellows by state → LGA
     const fellowsByStateLGA: Record<string, Record<string, number>> = {};
     for (const f of fellows) {
-      // Determine the state via the fellow's mentor
+      // Determine the state from the fellow's own LGA first, fallback to mentor's first state
       const mentorInfo = mentorMap.get(f.mentor.toString());
-      const state = mentorInfo?.states?.[0] ?? "UNKNOWN";
+      const state = getStateForLGA(f.lga) ?? mentorInfo?.states?.[0] ?? "UNKNOWN";
       if (!fellowsByStateLGA[state]) fellowsByStateLGA[state] = {};
       const lga = f.lga || "UNKNOWN";
       fellowsByStateLGA[state][lga] = (fellowsByStateLGA[state][lga] || 0) + 1;
@@ -151,7 +151,7 @@ export const POST = withExceptionLog(
 
     for (const r of reports) {
       const mentorInfo = mentorMap.get(r.mentor.toString());
-      const state = mentorInfo?.states?.[0] ?? "UNKNOWN";
+      const state = getStateForLGA(r.fellowLGA) ?? mentorInfo?.states?.[0] ?? "UNKNOWN";
 
       if (!stateData[state]) {
         stateData[state] = { mentors: new Set(), fellows: new Set(), reports: [] };
@@ -177,6 +177,14 @@ export const POST = withExceptionLog(
         achievements: r.achievements,
         progressRating: r.progressRating,
       });
+    }
+
+    // Ensure all coordinator states are represented (even without reports)
+    for (const st of coordinatorStates) {
+      if (!fellowsByStateLGA[st]) fellowsByStateLGA[st] = {};
+      if (!stateData[st]) {
+        stateData[st] = { mentors: new Set(), fellows: new Set(), reports: [] };
+      }
     }
 
     // Convert sets to counts for the AI payload

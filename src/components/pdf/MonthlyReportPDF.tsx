@@ -404,7 +404,7 @@ export function MonthlyReportPDF({ reports, monthLabel, zonalAuditData }: Monthl
 
                     {/* Operational Insights & Recommendations Page */}
                     <Page size="A4" style={s.page}>
-                        <Text style={s.sessionHeader}>Section 3: Operational Insights</Text>
+                        <Text style={s.sessionHeader}>Section 3: Operational Insights &amp; Problem Solving</Text>
 
                         <Text style={s.sectionTitle}>Progress of Zone</Text>
                         <Text style={s.bodyText}>{zonalAuditData.operationalInsights?.progressOfZone}</Text>
@@ -427,10 +427,10 @@ export function MonthlyReportPDF({ reports, monthLabel, zonalAuditData }: Monthl
 
                         <Text style={s.sessionHeader}>Section 4: Strategic Recommendations</Text>
 
-                        <Text style={s.sectionTitle}>Coordinator Directive</Text>
+                        <Text style={s.sectionTitle}>Zonal Coordinator&apos;s Recommendation</Text>
                         <Text style={s.bodyText}>{zonalAuditData.strategicRecommendations?.coordinatorDirective}</Text>
 
-                        <Text style={s.sectionTitle}>Team Lead Commendation</Text>
+                        <Text style={s.sectionTitle}>Zonal Coordinator&apos;s Commendation</Text>
                         <Text style={s.bodyText}>{zonalAuditData.strategicRecommendations?.teamLeadCommendation}</Text>
 
                         <PageFooter />

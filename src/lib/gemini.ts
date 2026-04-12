@@ -96,8 +96,8 @@ const zonalAuditResponseSchema: Schema = {
     strategicRecommendations: {
       type: SchemaType.OBJECT,
       properties: {
-        coordinatorDirective:  { type: SchemaType.STRING, description: "Directive paragraph for the coordinator" },
-        teamLeadCommendation:  { type: SchemaType.STRING, description: "Commendation paragraph from the team lead" },
+        coordinatorDirective:  { type: SchemaType.STRING, description: "Actionable recommendation from the Zonal Coordinator to mentors on redistributing resources and support" },
+        teamLeadCommendation:  { type: SchemaType.STRING, description: "Commendation paragraph from the Zonal Coordinator acknowledging Fellows and Mentors" },
       },
       required: ["coordinatorDirective", "teamLeadCommendation"],
     },
@@ -136,8 +136,8 @@ For each state, write a concise but informative narrative paragraph covering:
 - Solutions Proffered: Practical, actionable solutions
 
 **Section 4 – Strategic Recommendations**
-- Coordinator Directive: Clear, actionable directives for the zonal coordinator
-- Team Lead Commendation: A commendation paragraph from ${coordinatorName} (the Zonal Coordinator) acknowledging the zone's work
+- Zonal Coordinator's Recommendation: Clear, actionable advice from the Zonal Coordinator to mentors on redistributing resources, guidance, and support for the Bottom 5 LGAs
+- Zonal Coordinator's Commendation: A concluding professional remark from ${coordinatorName} (the Zonal Coordinator) acknowledging Fellows and Mentors and setting the tone for the upcoming month
 
 Use professional, formal language appropriate for an official NHS report. Be data-driven — reference specific numbers where available.`;
 }

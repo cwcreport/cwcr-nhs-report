@@ -118,3 +118,16 @@ export function getZoneForState(state: string): string | null {
 export function getStatesInZone(zoneName: string): string[] {
   return GEOPOLITICAL_ZONES[zoneName] ?? [];
 }
+
+// ─── LGA → State reverse lookup ─────────────
+const lgaToStateMap = new Map<string, string>();
+for (const entry of statesLgaData) {
+  const state = (entry.state as string).toUpperCase();
+  for (const lga of entry.lgas as Array<{ name: string }>) {
+    lgaToStateMap.set(lga.name.toUpperCase(), state);
+  }
+}
+
+export function getStateForLGA(lga: string): string | null {
+  return lgaToStateMap.get(lga.toUpperCase()) ?? null;
+}

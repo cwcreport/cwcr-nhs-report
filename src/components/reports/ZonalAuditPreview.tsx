@@ -54,7 +54,7 @@ export default function ZonalAuditPreview({
       {/* ── Section 1: State Executive Briefs ── */}
       <section>
         <h3 className="mb-3 text-base font-semibold text-gray-800">
-          1. State Executive Briefs
+          1. State-by-State Executive Brief
         </h3>
         <div className="space-y-3">
           {data.stateExecutiveBriefs.map((brief, i) => (
@@ -273,7 +273,7 @@ export default function ZonalAuditPreview({
       {/* ── Section 3: Operational Insights ── */}
       <section>
         <h3 className="mb-3 text-base font-semibold text-gray-800">
-          3. Operational Insights
+          3. Operational Insights &amp; Problem Solving
         </h3>
         <div className="space-y-3 rounded-md border bg-white p-4">
           <div>
@@ -395,7 +395,7 @@ export default function ZonalAuditPreview({
         </h3>
         <div className="space-y-3 rounded-md border bg-white p-4">
           <div>
-            <h4 className="text-sm font-medium text-gray-700">Coordinator Directive</h4>
+            <h4 className="text-sm font-medium text-gray-700">Zonal Coordinator&apos;s Recommendation</h4>
             {editable ? (
               <textarea
                 className={`${textareaClass} mt-1`}
@@ -417,7 +417,7 @@ export default function ZonalAuditPreview({
             )}
           </div>
           <div>
-            <h4 className="text-sm font-medium text-gray-700">Team Lead Commendation</h4>
+            <h4 className="text-sm font-medium text-gray-700">Zonal Coordinator&apos;s Commendation</h4>
             {editable ? (
               <textarea
                 className={`${textareaClass} mt-1`}
