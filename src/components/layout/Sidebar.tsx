@@ -170,7 +170,7 @@ export function Sidebar() {
 
   const visibleItems = NAV_ITEMS.filter(
     (item) => {
-      if (role && !item.roles.includes(role)) return false;
+      if (!role || !item.roles.includes(role)) return false;
       if (item.label === "Submit Report" && hasCurrentWeekReport) return false;
       // Coordinators need AI access to see Zonal Audits
       if (item.label === "Zonal Audits" && role === UserRole.COORDINATOR && !session?.user?.aiAccessEnabled) return false;
