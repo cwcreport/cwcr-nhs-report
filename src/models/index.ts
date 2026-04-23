@@ -19,3 +19,4 @@ export { ExceptionLog, type IExceptionLog } from "./ExceptionLog";
 export { IntegrationLog, type IIntegrationLog } from "./IntegrationLog";
 export { SavedZonalAudit, type ISavedZonalAudit } from "./SavedZonalAudit";
 export { SavedNationalAudit, type ISavedNationalAudit } from "./SavedNationalAudit";
+export { AppSettings, type IAppSettings, type IEditLockConfig } from "./AppSettings";

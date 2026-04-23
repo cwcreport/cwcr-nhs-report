@@ -3,7 +3,7 @@
    ────────────────────────────────────────── */
 import { NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import { WeeklyReport, Mentor, Coordinator, DeskOfficer, ReportHistory } from "@/models";
+import { WeeklyReport, Mentor, Coordinator, DeskOfficer, ReportHistory, AppSettings } from "@/models";
 import { UserRole, ReportHistoryReportType, ReportHistoryAction } from "@/lib/constants";
 import { requireAuth } from "@/lib/auth-guard";
 import { jsonOk, jsonError, parseBody } from "@/lib/api-helpers";
@@ -124,6 +124,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
   }
   // Admins can edit any report (no extra check needed)
+
+  // Check report-edit lock settings (admins bypass)
+  if (userRole !== UserRole.ADMIN) {
+    const settings = await AppSettings.findOne({}).lean();
+    if (settings) {
+      if (userRole === UserRole.MENTOR && settings.blockWeeklyReportEdits?.mentor) {
+        return jsonError("Weekly report editing is currently disabled.", 403);
+      }
+      if (userRole === UserRole.COORDINATOR && settings.blockWeeklyReportEdits?.coordinator) {
+        return jsonError("Weekly report editing is currently disabled.", 403);
+      }
+    }
+  }
 
   // Convert evidence objects to parallel arrays for DB
   if (Array.isArray(body.evidence)) {

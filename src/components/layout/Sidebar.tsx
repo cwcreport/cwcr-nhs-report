@@ -138,6 +138,12 @@ const NAV_ITEMS = [
     roles: [UserRole.ADMIN],
   },
   {
+    label: "Report Settings",
+    href: "/admin/report-settings",
+    icon: Settings,
+    roles: [UserRole.ADMIN],
+  },
+  {
     label: "Settings",
     href: "/settings",
     icon: Settings,

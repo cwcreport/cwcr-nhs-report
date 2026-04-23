@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
+import { AppSettings } from "@/models";
 import { MentorMonthlyReport } from "@/models/MentorMonthlyReport";
 import { Mentor } from "@/models/Mentor";
 import { Coordinator } from "@/models/Coordinator";
@@ -94,6 +95,18 @@ export async function PATCH(
             const mentorDoc = await Mentor.findById(report.mentor).lean();
             if (!mentorDoc || mentorDoc.coordinator?.toString() !== coordDoc._id.toString()) {
                 return NextResponse.json({ error: "Forbidden — this mentor is not assigned to you." }, { status: 403 });
+            }
+        }
+
+        if (role !== UserRole.ADMIN) {
+            const settings = await AppSettings.findOne({}).lean();
+            if (settings) {
+                if (role === UserRole.MENTOR && settings.blockMonthlyReportEdits?.mentor) {
+                    return NextResponse.json({ error: "Monthly report editing is currently disabled." }, { status: 403 });
+                }
+                if (role === UserRole.COORDINATOR && settings.blockMonthlyReportEdits?.coordinator) {
+                    return NextResponse.json({ error: "Monthly report editing is currently disabled." }, { status: 403 });
+                }
             }
         }
 

@@ -373,6 +373,13 @@ export const api = {
         `/api/admin/users/${userId}/ai-access`,
         { method: "PATCH", body: JSON.stringify({ aiAccessEnabled: enabled }) },
       ),
+    getReportSettings: () =>
+      request<ReportSettings>("/api/admin/report-settings"),
+    updateReportSettings: (data: Partial<ReportSettings>) =>
+      request<ReportSettings>("/api/admin/report-settings", {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
   },};
 
 // ─── Types ──────────────────────────────────
@@ -796,6 +803,16 @@ export interface CreateDocumentTypeInput {
 
 export interface UpdateDocumentTypeInput {
   title: string;
+}
+
+export interface EditLockConfig {
+  mentor: boolean;
+  coordinator: boolean;
+}
+
+export interface ReportSettings {
+  blockWeeklyReportEdits: EditLockConfig;
+  blockMonthlyReportEdits: EditLockConfig;
 }
 
 export interface ActivityLog {
