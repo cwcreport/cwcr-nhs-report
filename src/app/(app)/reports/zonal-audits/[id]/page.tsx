@@ -20,6 +20,10 @@ import type { IZonalAuditReport } from "@/types/zonal-audit";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 
+function getErrorMessage(error: unknown, fallback: string) {
+    return error instanceof Error ? error.message : fallback;
+}
+
 export default function ZonalAuditDetailPage() {
     const { id } = useParams() as { id: string };
     const router = useRouter();
@@ -33,16 +37,15 @@ export default function ZonalAuditDetailPage() {
     const auditRef = useRef<HTMLDivElement>(null);
 
     const { data: session } = useSession();
-    const canEdit = session?.user?.role === UserRole.COORDINATOR || session?.user?.role === UserRole.ADMIN;
-    const canDelete = canEdit;
+    const canDelete = session?.user?.role === UserRole.COORDINATOR || session?.user?.role === UserRole.ADMIN;
 
     const fetchAudit = useCallback(async () => {
         try {
             setLoading(true);
             const data = await api.reports.zonalAudits.get(id);
             setAudit(data);
-        } catch (err: any) {
-            setError(err.message || "Failed to load audit");
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, "Failed to load audit"));
         } finally {
             setLoading(false);
         }
@@ -111,8 +114,8 @@ export default function ZonalAuditDetailPage() {
             setAudit(updated);
             setIsEditing(false);
             setEditableData(null);
-        } catch (err: any) {
-            alert(`Failed to save: ${err.message}`);
+        } catch (err: unknown) {
+            alert(`Failed to save: ${getErrorMessage(err, "Request failed")}`);
         } finally {
             setSaving(false);
         }
@@ -123,8 +126,8 @@ export default function ZonalAuditDetailPage() {
         try {
             await api.reports.zonalAudits.delete(id);
             router.push("/reports/zonal-audits");
-        } catch (err: any) {
-            alert(`Failed to delete: ${err.message}`);
+        } catch (err: unknown) {
+            alert(`Failed to delete: ${getErrorMessage(err, "Request failed")}`);
         }
     };
 
@@ -137,6 +140,7 @@ export default function ZonalAuditDetailPage() {
     }
 
     const displayMonth = safeFormatISO(audit.month ? `${audit.month}-01` : null, "MMMM yyyy");
+    const canEdit = !!audit.canEdit;
 
     return (
         <>

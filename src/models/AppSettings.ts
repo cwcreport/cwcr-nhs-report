@@ -11,6 +11,7 @@ export interface IEditLockConfig {
 export interface IAppSettings extends Document {
   blockWeeklyReportEdits: IEditLockConfig;
   blockMonthlyReportEdits: IEditLockConfig;
+  blockZonalAuditEdits: boolean;
   updatedAt: Date;
   createdAt: Date;
 }
@@ -27,6 +28,7 @@ const AppSettingsSchema = new Schema<IAppSettings>(
   {
     blockWeeklyReportEdits: { type: EditLockConfigSchema, default: () => ({ mentor: false, coordinator: false }) },
     blockMonthlyReportEdits: { type: EditLockConfigSchema, default: () => ({ mentor: false, coordinator: false }) },
+    blockZonalAuditEdits: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

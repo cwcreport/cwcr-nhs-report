@@ -1,11 +1,32 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { connectDB } from "@/lib/db";
+import { AppSettings } from "@/models";
 import { SavedZonalAudit } from "@/models/SavedZonalAudit";
 import { Coordinator } from "@/models/Coordinator";
 import { DeskOfficer } from "@/models/DeskOfficer";
 import { UserRole, getZoneForState } from "@/lib/constants";
 import { logActivity } from "@/lib/activity-logger";
+
+type PopulatedCoordinator = {
+    _id: string | { toString(): string };
+    authId?: { name?: string; email?: string };
+    states?: string[];
+};
+
+function getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : "Internal server error";
+}
+
+type NormalizedAuditResponse = Record<string, unknown> & {
+    coordinator?: {
+        _id: PopulatedCoordinator["_id"];
+        name?: string;
+        email?: string;
+        state: string;
+    };
+    canEdit: boolean;
+};
 
 export async function GET(
     _request: Request,
@@ -61,9 +82,10 @@ export async function GET(
         // Admin, ME Officer, Team Research Lead — unrestricted
 
         // Normalize coordinator for client
-        const normalized: any = { ...audit };
-        if ((audit as any).coordinator?.authId) {
-            const c = (audit as any).coordinator;
+        const auditWithCoordinator = audit as typeof audit & { coordinator?: PopulatedCoordinator };
+        const normalized: NormalizedAuditResponse = { ...(audit as unknown as Record<string, unknown>), canEdit: false };
+        if (auditWithCoordinator.coordinator?.authId) {
+            const c = auditWithCoordinator.coordinator;
             normalized.coordinator = {
                 _id: c._id,
                 name: c.authId?.name,
@@ -72,9 +94,14 @@ export async function GET(
             };
         }
 
+        const settings = await AppSettings.findOne({}).lean();
+        normalized.canEdit =
+            !settings?.blockZonalAuditEdits &&
+            (role === UserRole.ADMIN || role === UserRole.COORDINATOR);
+
         return NextResponse.json(normalized);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -118,8 +145,8 @@ export async function DELETE(
         });
 
         return NextResponse.json({ message: "Zonal audit deleted" });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -157,6 +184,11 @@ export async function PATCH(
             }
         }
 
+        const settings = await AppSettings.findOne({}).lean();
+        if (settings?.blockZonalAuditEdits) {
+            return NextResponse.json({ error: "Zonal audit editing is currently disabled." }, { status: 403 });
+        }
+
         audit.auditData = body.auditData;
         await audit.save();
 
@@ -168,9 +200,17 @@ export async function PATCH(
             })
             .lean();
 
-        const normalized: any = { ...updated };
-        if ((updated as any)?.coordinator?.authId) {
-            const c = (updated as any).coordinator;
+        if (!updated) {
+            return NextResponse.json({ error: "Zonal audit not found" }, { status: 404 });
+        }
+
+        const updatedWithCoordinator = updated as typeof updated & { coordinator?: PopulatedCoordinator };
+        const normalized: NormalizedAuditResponse = {
+            ...(updated as unknown as Record<string, unknown>),
+            canEdit: !settings?.blockZonalAuditEdits && (role === UserRole.ADMIN || role === UserRole.COORDINATOR),
+        };
+        if (updatedWithCoordinator.coordinator?.authId) {
+            const c = updatedWithCoordinator.coordinator;
             normalized.coordinator = {
                 _id: c._id,
                 name: c.authId?.name,
@@ -188,7 +228,7 @@ export async function PATCH(
         });
 
         return NextResponse.json(normalized);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }

@@ -262,7 +262,7 @@ export const api = {
     zonalAudits: {
       list: (params?: URLSearchParams | Record<string, string>) =>
         request<PaginatedResponse<SavedZonalAudit>>(`/api/reports/zonal-audits?${new URLSearchParams(params).toString()}`),
-      get: (id: string) => request<SavedZonalAudit>(`/api/reports/zonal-audits/${id}`),
+      get: (id: string) => request<SavedZonalAudit>(`/api/reports/zonal-audits/${id}`, { cache: "no-store" }),
       save: (data: CreateSavedZonalAuditInput) =>
         request<SavedZonalAudit>("/api/reports/zonal-audits", { method: "POST", body: JSON.stringify(data) }),
       delete: (id: string) =>
@@ -719,6 +719,7 @@ export interface SavedZonalAudit {
   month: string;
   auditData: IZonalAuditReport;
   createdAt: string;
+  canEdit?: boolean;
 }
 
 export interface CreateSavedZonalAuditInput {
@@ -815,6 +816,7 @@ export interface EditLockConfig {
 export interface ReportSettings {
   blockWeeklyReportEdits: EditLockConfig;
   blockMonthlyReportEdits: EditLockConfig;
+  blockZonalAuditEdits: boolean;
 }
 
 export interface ActivityLog {

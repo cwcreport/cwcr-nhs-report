@@ -12,7 +12,10 @@ import { AlertTriangle, Info } from "lucide-react";
 const DEFAULT_SETTINGS: ReportSettings = {
   blockWeeklyReportEdits: { mentor: false, coordinator: false },
   blockMonthlyReportEdits: { mentor: false, coordinator: false },
+  blockZonalAuditEdits: false,
 };
+
+type EditableLockSection = "blockWeeklyReportEdits" | "blockMonthlyReportEdits";
 
 /* ─── Toggle Row ────────────────────────── */
 function ToggleRow({
@@ -70,6 +73,7 @@ export default function ReportSettingsPage() {
       setSettings({
         blockWeeklyReportEdits: data.blockWeeklyReportEdits ?? DEFAULT_SETTINGS.blockWeeklyReportEdits,
         blockMonthlyReportEdits: data.blockMonthlyReportEdits ?? DEFAULT_SETTINGS.blockMonthlyReportEdits,
+        blockZonalAuditEdits: data.blockZonalAuditEdits ?? DEFAULT_SETTINGS.blockZonalAuditEdits,
       });
     } catch (err) {
       setError((err as Error).message ?? "Failed to load settings");
@@ -83,7 +87,7 @@ export default function ReportSettingsPage() {
   }, [load]);
 
   const handleToggle = async (
-    section: keyof ReportSettings,
+    section: EditableLockSection,
     role: "mentor" | "coordinator",
     value: boolean,
   ) => {
@@ -101,10 +105,34 @@ export default function ReportSettingsPage() {
       setSettings({
         blockWeeklyReportEdits: updated.blockWeeklyReportEdits ?? optimistic.blockWeeklyReportEdits,
         blockMonthlyReportEdits: updated.blockMonthlyReportEdits ?? optimistic.blockMonthlyReportEdits,
+        blockZonalAuditEdits: updated.blockZonalAuditEdits ?? optimistic.blockZonalAuditEdits,
       });
     } catch (err) {
       setError((err as Error).message ?? "Failed to save setting");
       // Revert optimistic update on error
+      setSettings(settings);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleZonalAuditToggle = async (value: boolean) => {
+    const optimistic: ReportSettings = {
+      ...settings,
+      blockZonalAuditEdits: value,
+    };
+    setSettings(optimistic);
+    setSaving(true);
+    setError("");
+    try {
+      const updated = await api.admin.updateReportSettings({ blockZonalAuditEdits: value });
+      setSettings({
+        blockWeeklyReportEdits: updated.blockWeeklyReportEdits ?? optimistic.blockWeeklyReportEdits,
+        blockMonthlyReportEdits: updated.blockMonthlyReportEdits ?? optimistic.blockMonthlyReportEdits,
+        blockZonalAuditEdits: updated.blockZonalAuditEdits ?? optimistic.blockZonalAuditEdits,
+      });
+    } catch (err) {
+      setError((err as Error).message ?? "Failed to save setting");
       setSettings(settings);
     } finally {
       setSaving(false);
@@ -202,6 +230,37 @@ export default function ReportSettingsPage() {
                   onChange={(v) => handleToggle("blockMonthlyReportEdits", "coordinator", v)}
                 />
               </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Zonal Audits</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Block all users from editing saved zonal audits.
+            </p>
+
+            <div className="flex items-start gap-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <Info className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>
+                This lock hides the Edit action on saved zonal audits and blocks audit updates
+                through the API. Delete remains unchanged.
+              </span>
+            </div>
+
+            {loading ? (
+              <div className="space-y-3">
+                <div className="h-10 bg-gray-100 rounded animate-pulse" />
+              </div>
+            ) : (
+              <ToggleRow
+                label="Block all zonal audit edits"
+                description="Prevents coordinators and admins from editing saved zonal audits"
+                checked={settings.blockZonalAuditEdits}
+                disabled={saving}
+                onChange={handleZonalAuditToggle}
+              />
             )}
           </CardContent>
         </Card>

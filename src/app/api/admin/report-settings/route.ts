@@ -11,6 +11,7 @@ import { jsonOk, jsonError, parseBody } from "@/lib/api-helpers";
 const DEFAULT_SETTINGS = {
   blockWeeklyReportEdits: { mentor: false, coordinator: false },
   blockMonthlyReportEdits: { mentor: false, coordinator: false },
+  blockZonalAuditEdits: false,
 };
 
 // GET /api/admin/report-settings
@@ -32,6 +33,7 @@ export async function PATCH(request: NextRequest) {
   const body = await parseBody<{
     blockWeeklyReportEdits?: { mentor?: boolean; coordinator?: boolean };
     blockMonthlyReportEdits?: { mentor?: boolean; coordinator?: boolean };
+    blockZonalAuditEdits?: boolean;
   }>(request);
   if (!body) return jsonError("Invalid body");
 
@@ -49,6 +51,9 @@ export async function PATCH(request: NextRequest) {
   }
   if (body.blockMonthlyReportEdits?.coordinator !== undefined) {
     update["blockMonthlyReportEdits.coordinator"] = body.blockMonthlyReportEdits.coordinator;
+  }
+  if (body.blockZonalAuditEdits !== undefined) {
+    update["blockZonalAuditEdits"] = body.blockZonalAuditEdits;
   }
 
   if (Object.keys(update).length === 0) return jsonError("No valid fields provided");
