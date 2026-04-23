@@ -209,7 +209,7 @@ export const api = {
   reports: {
     list: (params?: URLSearchParams | Record<string, string>) =>
       request<PaginatedResponse<Report>>(`/api/reports?${new URLSearchParams(params).toString()}`),
-    get: (id: string) => request<Report>(`/api/reports/${id}`),
+    get: (id: string) => request<Report>(`/api/reports/${id}`, { cache: "no-store" }),
     create: (data: CreateReportInput) =>
       request<Report>("/api/reports", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Report>) =>
@@ -246,7 +246,7 @@ export const api = {
     fellowMonthly: {
       list: (params?: URLSearchParams | Record<string, string>) =>
         request<PaginatedResponse<MentorMonthlyReport>>(`/api/reports/fellow-monthly?${new URLSearchParams(params).toString()}`),
-      get: (id: string) => request<MentorMonthlyReport>(`/api/reports/fellow-monthly/${id}`),
+      get: (id: string) => request<MentorMonthlyReport>(`/api/reports/fellow-monthly/${id}`, { cache: "no-store" }),
       create: (data: CreateMentorMonthlyReportInput) =>
         request<MentorMonthlyReport>("/api/reports/fellow-monthly", { method: "POST", body: JSON.stringify(data) }),
       update: (id: string, data: Partial<CreateMentorMonthlyReportInput>) =>
