@@ -35,6 +35,7 @@ export default function EditReportPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
+  const [canEdit, setCanEdit] = useState(true);
   const [error, setError] = useState("");
   const [uploadingIdx, setUploadingIdx] = useState<number | null>(null);
 
@@ -87,6 +88,10 @@ export default function EditReportPage() {
         const profileJson = await profileRes.json();
         if (profileJson.roleDetails?.lgas) {
           setMentorLGAs(profileJson.roleDetails.lgas as string[]);
+        }
+        if (report.canEdit === false) {
+          setCanEdit(false);
+          return;
         }
 
         // Pre-fill all form fields from report
@@ -290,6 +295,30 @@ export default function EditReportPage() {
       <div className="flex items-center justify-center h-64 text-gray-400">
         Loading report…
       </div>
+    );
+  }
+
+  if (!canEdit) {
+    return (
+      <>
+        <Header title="Edit Weekly Report" subtitle="Update your mentorship session details" />
+
+        <div className="p-6 max-w-4xl">
+          <Card>
+            <CardHeader>
+              <CardTitle>Editing unavailable</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Editing is not available for this weekly report.
+              </p>
+              <Button type="button" variant="outline" onClick={() => router.push(`/reports/${id}`)}>
+                Back to report
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </>
     );
   }
 

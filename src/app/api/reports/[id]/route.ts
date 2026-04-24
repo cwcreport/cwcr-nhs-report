@@ -9,6 +9,7 @@ import { requireAuth } from "@/lib/auth-guard";
 import { jsonOk, jsonError, parseBody } from "@/lib/api-helpers";
 import { rebuildRollupForWeek } from "@/services/rollup.service";
 import { logActivity } from "@/lib/activity-logger";
+import { currentWeekKey } from "@/lib/date-helpers";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -68,9 +69,10 @@ export async function GET(_request: NextRequest, { params }: Params) {
     userRole === UserRole.MENTOR || userRole === UserRole.COORDINATOR
       ? await AppSettings.findOne({}).lean()
       : null;
+  const isCurrentReportWeek = (report as any).weekKey === currentWeekKey();
   const canEdit =
     userRole === UserRole.ADMIN ||
-    (userRole === UserRole.MENTOR && !settings?.blockWeeklyReportEdits?.mentor) ||
+    (userRole === UserRole.MENTOR && isCurrentReportWeek && !settings?.blockWeeklyReportEdits?.mentor) ||
     (userRole === UserRole.COORDINATOR && !settings?.blockWeeklyReportEdits?.coordinator);
 
   const mentorUser = mentorDoc?.authId;
@@ -123,6 +125,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const mentorDoc = await Mentor.findOne({ authId: session!.user.id });
     if (!mentorDoc || report.mentor.toString() !== mentorDoc._id.toString()) {
       return jsonError("Forbidden", 403);
+    }
+    if (report.weekKey !== currentWeekKey()) {
+      return jsonError("Mentors can only edit weekly reports for the current week.", 403);
     }
   } else if (userRole === UserRole.COORDINATOR) {
     // Coordinators can only update reports from mentors assigned to them
