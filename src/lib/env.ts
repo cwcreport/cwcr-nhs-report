@@ -31,6 +31,7 @@ export const env = {
   SMTP_PORT: () => Number(getEnvVar("SMTP_PORT", "587")),
   SMTP_USER: () => getEnvVar("SMTP_USER"),
   SMTP_PASS: () => getEnvVar("SMTP_PASS"),
+  SMTP_SECURE: () => getEnvVar("SMTP_SECURE", "false").toLowerCase() === "true",
   SMTP_FROM: () => getEnvVar("SMTP_FROM", `${APP_NAME} <noreply@example.com>`),
   SMTP_REPLY_TO: () => getEnvVar("SMTP_REPLY_TO", "support@example.com"),
   RESEND_API_KEY: () => process.env.RESEND_API_KEY, // Optional since we use SMTP

@@ -10,7 +10,9 @@ let transporter: Transporter | null = null;
 export function getTransporter(): Transporter {
   if (!transporter) {
     transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: env.SMTP_HOST(),
+      port: env.SMTP_PORT(),
+      secure: env.SMTP_SECURE(), // true for 465, false for other ports
       auth: {
         user: env.SMTP_USER(),
         pass: env.SMTP_PASS(),
