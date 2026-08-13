@@ -18,12 +18,224 @@ import {
     CheckCircle2,
     ShieldAlert,
     Clock,
-    Loader2
+    Loader2,
+    AlertTriangle,
+    X
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Select } from "@/components/ui/Select";
 import { UserRole } from "@/lib/constants";
 
+/* ─── Confirmation Modal Component ───────────── */
+interface ConfirmModalProps {
+    open: boolean;
+    type: "soft-delete" | "permanent-delete" | "restore";
+    doc: FellowDocument | null;
+    isMentor: boolean;
+    loading: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+}
+
+function DocumentActionModal({
+    open,
+    type,
+    doc,
+    isMentor,
+    loading,
+    onClose,
+    onConfirm,
+}: ConfirmModalProps) {
+    if (!open || !doc) return null;
+
+    const docTitle =
+        typeof doc.documentType === "object"
+            ? doc.documentType?.title
+            : "Fellow Document";
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-xs p-4"
+            onClick={(e) => {
+                if (e.target === e.currentTarget && !loading) onClose();
+            }}
+        >
+            <div
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto overflow-hidden border border-gray-100 animate-in fade-in zoom-in-95 duration-150"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="p-6 pb-4">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3.5">
+                            {type === "soft-delete" && (
+                                <div className="h-12 w-12 rounded-full bg-red-100 border border-red-200 flex items-center justify-center shrink-0">
+                                    <Trash2 className="h-6 w-6 text-red-600" />
+                                </div>
+                            )}
+                            {type === "permanent-delete" && (
+                                <div className="h-12 w-12 rounded-full bg-red-100 border border-red-200 flex items-center justify-center shrink-0">
+                                    <AlertTriangle className="h-6 w-6 text-red-600" />
+                                </div>
+                            )}
+                            {type === "restore" && (
+                                <div className="h-12 w-12 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center shrink-0">
+                                    <RotateCcw className="h-6 w-6 text-emerald-600" />
+                                </div>
+                            )}
+
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">
+                                    {type === "soft-delete" && "Delete Document"}
+                                    {type === "permanent-delete" && "Permanently Delete"}
+                                    {type === "restore" && "Restore Document"}
+                                </h3>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                    {type === "soft-delete" && "Remove this fellow document"}
+                                    {type === "permanent-delete" && "Permanent destructive action"}
+                                    {type === "restore" && "Reactivate this fellow document"}
+                                </p>
+                            </div>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={loading}
+                            className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                            <X className="h-5 w-5" />
+                        </button>
+                    </div>
+
+                    {/* Message Body */}
+                    <div className="mt-4 space-y-3">
+                        <p className="text-sm text-gray-600 leading-relaxed">
+                            {type === "soft-delete" && (
+                                isMentor
+                                    ? "Are you sure you want to delete this document? It will be removed from your list of fellow documents."
+                                    : "Are you sure you want to move this document to the trash? Administrators will still be able to restore or permanently delete it."
+                            )}
+                            {type === "permanent-delete" && (
+                                <span className="text-red-700 font-medium">
+                                    This action cannot be undone. This document will be completely and permanently removed from the system.
+                                </span>
+                            )}
+                            {type === "restore" && (
+                                "Are you sure you want to restore this document? It will be moved back to active status and will be visible to mentors."
+                            )}
+                        </p>
+
+                        {/* Document summary box */}
+                        <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                                <div className="h-9 w-9 rounded-lg bg-orange-100 text-orange-700 flex items-center justify-center shrink-0">
+                                    <FileText className="h-4 w-4" />
+                                </div>
+                                <div className="truncate">
+                                    <p className="text-sm font-semibold text-gray-900 truncate" title={docTitle}>
+                                        {docTitle}
+                                    </p>
+                                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                                        <Clock className="h-3 w-3" />
+                                        Uploaded {new Date(doc.createdAt).toLocaleDateString()}
+                                    </p>
+                                </div>
+                            </div>
+                            <a
+                                href={doc.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs font-medium text-orange-700 hover:underline shrink-0 flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-md shadow-2xs"
+                            >
+                                <ExternalLink className="h-3 w-3" /> View
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onClose}
+                        disabled={loading}
+                    >
+                        Cancel
+                    </Button>
+
+                    {type === "soft-delete" && (
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={onConfirm}
+                            disabled={loading}
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                            {loading ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Deleting…
+                                </>
+                            ) : (
+                                <>
+                                    <Trash2 className="h-4 w-4 mr-1.5" />
+                                    Delete Document
+                                </>
+                            )}
+                        </Button>
+                    )}
+
+                    {type === "permanent-delete" && (
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={onConfirm}
+                            disabled={loading}
+                            className="bg-red-700 hover:bg-red-800 text-white font-semibold"
+                        >
+                            {loading ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Purging…
+                                </>
+                            ) : (
+                                <>
+                                    <AlertTriangle className="h-4 w-4 mr-1.5" />
+                                    Permanently Delete
+                                </>
+                            )}
+                        </Button>
+                    )}
+
+                    {type === "restore" && (
+                        <Button
+                            type="button"
+                            onClick={onConfirm}
+                            disabled={loading}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                        >
+                            {loading ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Restoring…
+                                </>
+                            ) : (
+                                <>
+                                    <RotateCcw className="h-4 w-4 mr-1.5" />
+                                    Restore Document
+                                </>
+                            )}
+                        </Button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/* ─── Main Page ────────────────────────── */
 export default function FellowDocumentUploadPage({
     params,
 }: {
@@ -38,12 +250,23 @@ export default function FellowDocumentUploadPage({
     const [loading, setLoading] = useState(true);
 
     const [uploading, setUploading] = useState(false);
-    const [actionDocId, setActionDocId] = useState<string | null>(null);
+    const [actionLoading, setActionLoading] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
     const [filterTab, setFilterTab] = useState<"all" | "active" | "deleted">("all");
     const [filesToUpload, setFilesToUpload] = useState<{ file: File; typeId: string }[]>([]);
+
+    // Modal state for confirmation
+    const [modalState, setModalState] = useState<{
+        open: boolean;
+        type: "soft-delete" | "permanent-delete" | "restore";
+        doc: FellowDocument | null;
+    }>({
+        open: false,
+        type: "soft-delete",
+        doc: null,
+    });
 
     const isAdmin = session?.user?.role === UserRole.ADMIN;
     const isMentor = session?.user?.role === UserRole.MENTOR;
@@ -151,60 +374,54 @@ export default function FellowDocumentUploadPage({
         }
     };
 
-    // Soft delete document (Mentor or Admin)
-    const handleSoftDelete = async (docId: string) => {
-        if (!confirm("Are you sure you want to delete this document?")) return;
+    // Open confirmation modals
+    const triggerSoftDelete = (doc: FellowDocument) => {
+        setModalState({ open: true, type: "soft-delete", doc });
+    };
 
-        setActionDocId(docId);
-        setError("");
-        setSuccess("");
+    const triggerRestore = (doc: FellowDocument) => {
+        setModalState({ open: true, type: "restore", doc });
+    };
 
-        try {
-            const res = await api.fellows.documents.delete(id, docId, false);
-            setSuccess(res.message || "Document deleted successfully.");
-            await fetchDocuments();
-        } catch (err) {
-            setError((err as Error).message);
-        } finally {
-            setActionDocId(null);
+    const triggerPermanentDelete = (doc: FellowDocument) => {
+        setModalState({ open: true, type: "permanent-delete", doc });
+    };
+
+    const handleModalClose = () => {
+        if (!actionLoading) {
+            setModalState({ open: false, type: "soft-delete", doc: null });
         }
     };
 
-    // Restore soft-deleted document (Admin only)
-    const handleRestore = async (docId: string) => {
-        if (!confirm("Are you sure you want to restore this document?")) return;
+    // Execute modal confirmed action
+    const handleConfirmAction = async () => {
+        if (!modalState.doc) return;
 
-        setActionDocId(docId);
+        const docId = modalState.doc._id;
+        const actionType = modalState.type;
+
+        setActionLoading(true);
         setError("");
         setSuccess("");
 
         try {
-            const res = await api.fellows.documents.restore(id, docId);
-            setSuccess(res.message || "Document restored successfully.");
+            if (actionType === "soft-delete") {
+                const res = await api.fellows.documents.delete(id, docId, false);
+                setSuccess(res.message || "Document deleted successfully.");
+            } else if (actionType === "restore") {
+                const res = await api.fellows.documents.restore(id, docId);
+                setSuccess(res.message || "Document restored successfully.");
+            } else if (actionType === "permanent-delete") {
+                const res = await api.fellows.documents.delete(id, docId, true);
+                setSuccess(res.message || "Document permanently deleted.");
+            }
+
+            setModalState({ open: false, type: "soft-delete", doc: null });
             await fetchDocuments();
         } catch (err) {
             setError((err as Error).message);
         } finally {
-            setActionDocId(null);
-        }
-    };
-
-    // Permanently delete document (Admin only)
-    const handlePermanentDelete = async (docId: string) => {
-        if (!confirm("Are you sure you want to PERMANENTLY delete this document? This action CANNOT be undone.")) return;
-
-        setActionDocId(docId);
-        setError("");
-        setSuccess("");
-
-        try {
-            const res = await api.fellows.documents.delete(id, docId, true);
-            setSuccess(res.message || "Document permanently deleted.");
-            await fetchDocuments();
-        } catch (err) {
-            setError((err as Error).message);
-        } finally {
-            setActionDocId(null);
+            setActionLoading(false);
         }
     };
 
@@ -408,7 +625,6 @@ export default function FellowDocumentUploadPage({
                                     <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                                         {displayedDocs.map((doc) => {
                                             const isDeleted = !!doc.deleted;
-                                            const isBusy = actionDocId === doc._id;
 
                                             return (
                                                 <div
@@ -470,18 +686,11 @@ export default function FellowDocumentUploadPage({
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
-                                                                onClick={() => handleSoftDelete(doc._id)}
-                                                                disabled={isBusy}
+                                                                onClick={() => triggerSoftDelete(doc)}
                                                                 className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs h-8 px-2.5"
                                                                 title="Delete document"
                                                             >
-                                                                {isBusy ? (
-                                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                                ) : (
-                                                                    <>
-                                                                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
-                                                                    </>
-                                                                )}
+                                                                <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
                                                             </Button>
                                                         )}
 
@@ -493,34 +702,20 @@ export default function FellowDocumentUploadPage({
                                                                         <Button
                                                                             variant="outline"
                                                                             size="sm"
-                                                                            onClick={() => handleRestore(doc._id)}
-                                                                            disabled={isBusy}
+                                                                            onClick={() => triggerRestore(doc)}
                                                                             className="text-emerald-700 border-emerald-300 hover:bg-emerald-50 text-xs h-8 px-2.5"
                                                                             title="Restore document"
                                                                         >
-                                                                            {isBusy ? (
-                                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                                            ) : (
-                                                                                <>
-                                                                                    <RotateCcw className="h-3.5 w-3.5 mr-1" /> Restore
-                                                                                </>
-                                                                            )}
+                                                                            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Restore
                                                                         </Button>
                                                                         <Button
                                                                             variant="destructive"
                                                                             size="sm"
-                                                                            onClick={() => handlePermanentDelete(doc._id)}
-                                                                            disabled={isBusy}
+                                                                            onClick={() => triggerPermanentDelete(doc)}
                                                                             className="text-xs h-8 px-2.5"
                                                                             title="Permanently delete from database"
                                                                         >
-                                                                            {isBusy ? (
-                                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                                            ) : (
-                                                                                <>
-                                                                                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Permanent Delete
-                                                                                </>
-                                                                            )}
+                                                                            <Trash2 className="h-3.5 w-3.5 mr-1" /> Permanent Delete
                                                                         </Button>
                                                                     </>
                                                                 ) : (
@@ -528,32 +723,20 @@ export default function FellowDocumentUploadPage({
                                                                         <Button
                                                                             variant="ghost"
                                                                             size="sm"
-                                                                            onClick={() => handleSoftDelete(doc._id)}
-                                                                            disabled={isBusy}
+                                                                            onClick={() => triggerSoftDelete(doc)}
                                                                             className="text-amber-700 hover:text-amber-800 hover:bg-amber-50 text-xs h-8 px-2.5"
                                                                             title="Move document to trash"
                                                                         >
-                                                                            {isBusy ? (
-                                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                                            ) : (
-                                                                                <>
-                                                                                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
-                                                                                </>
-                                                                            )}
+                                                                            <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
                                                                         </Button>
                                                                         <Button
                                                                             variant="ghost"
                                                                             size="sm"
-                                                                            onClick={() => handlePermanentDelete(doc._id)}
-                                                                            disabled={isBusy}
+                                                                            onClick={() => triggerPermanentDelete(doc)}
                                                                             className="text-red-600 hover:text-red-700 hover:bg-red-50 text-xs h-8 px-2"
                                                                             title="Permanently delete immediately"
                                                                         >
-                                                                            {isBusy ? (
-                                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                                            ) : (
-                                                                                <span className="text-[11px] font-medium text-red-500 hover:underline">Permanent</span>
-                                                                            )}
+                                                                            <span className="text-[11px] font-medium text-red-500 hover:underline">Permanent</span>
                                                                         </Button>
                                                                     </>
                                                                 )}
@@ -570,6 +753,17 @@ export default function FellowDocumentUploadPage({
                     </div>
                 </div>
             </div>
+
+            {/* Action Confirmation Modal */}
+            <DocumentActionModal
+                open={modalState.open}
+                type={modalState.type}
+                doc={modalState.doc}
+                isMentor={isMentor}
+                loading={actionLoading}
+                onClose={handleModalClose}
+                onConfirm={handleConfirmAction}
+            />
         </>
     );
 }
