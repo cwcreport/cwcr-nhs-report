@@ -61,10 +61,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     await connectDB();
 
-    // Check if any fellow document is using this document type
-    const inUse = await FellowDocument.exists({ documentType: id });
+    // Check if any active fellow document is using this document type
+    const inUse = await FellowDocument.exists({ documentType: id, deleted: { $ne: true } });
     if (inUse) {
-        return jsonError("Cannot delete: Document type is currently assigned to one or more fellow documents", 400);
+        return jsonError("Cannot delete: Document type is currently assigned to one or more active fellow documents", 400);
     }
 
     const documentType = await DocumentType.findByIdAndDelete(id).lean();

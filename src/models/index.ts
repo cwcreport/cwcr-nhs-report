@@ -25,3 +25,5 @@ export { SavedZonalAudit, type ISavedZonalAudit } from "./SavedZonalAudit";
 export { SavedNationalAudit, type ISavedNationalAudit } from "./SavedNationalAudit";
 export { SavedNationalAuditPeriod, type ISavedNationalAuditPeriod } from "./SavedNationalAuditPeriod";
 export { AppSettings, type IAppSettings, type IEditLockConfig } from "./AppSettings";
+export { FellowDocument, type IFellowDocument } from "./FellowDocument";
+export { DocumentType, type IDocumentType } from "./DocumentType";

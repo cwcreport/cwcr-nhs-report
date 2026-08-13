@@ -69,11 +69,11 @@ export async function GET(request: Request) {
             Fellow.countDocuments(filter),
         ]);
 
-        // Attach documentCount for each fellow on this page
+        // Attach documentCount for each fellow on this page (active documents only)
         const fellowIds = data.map((f) => f._id);
         const counts = fellowIds.length
             ? await FellowDocument.aggregate<{ _id: unknown; count: number }>([
-                  { $match: { fellow: { $in: fellowIds } } },
+                  { $match: { fellow: { $in: fellowIds }, deleted: { $ne: true } } },
                   { $group: { _id: "$fellow", count: { $sum: 1 } } },
               ])
             : [];

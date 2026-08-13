@@ -346,6 +346,16 @@ export const api = {
         request<FellowDocument[]>(`/api/fellows/${fellowId}/documents`),
       upload: (fellowId: string, data: { documents: UploadFellowDocumentInput[] }) =>
         request<FellowDocument[]>(`/api/fellows/${fellowId}/documents`, { method: "POST", body: JSON.stringify(data) }),
+      delete: (fellowId: string, docId: string, permanent?: boolean) =>
+        request<{ success: boolean; message: string }>(
+          `/api/fellows/${fellowId}/documents/${docId}${permanent ? "?permanent=true" : ""}`,
+          { method: "DELETE" }
+        ),
+      restore: (fellowId: string, docId: string) =>
+        request<{ success: boolean; message: string; document: FellowDocument }>(
+          `/api/fellows/${fellowId}/documents/${docId}`,
+          { method: "PATCH" }
+        ),
     },
     bulkCreate: (data: { fellows: BulkFellowInput[] }) =>
       request<{ successful: number; failed: number; errors: string[]; warnings?: string[] }>("/api/fellows/bulk", {
@@ -746,7 +756,11 @@ export interface FellowDocument {
   fellow: string;
   documentType: { _id: string; title: string } | string;
   url: string;
+  deleted?: boolean;
+  deletedAt?: string | null;
+  deletedBy?: { _id: string; name: string; email?: string } | string | null;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface UploadFellowDocumentInput {

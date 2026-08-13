@@ -592,7 +592,7 @@ export default function FellowsPage() {
                                                         variant="ghost"
                                                         size="icon"
                                                         onClick={() => {
-                                                            setEditingFellow(f);
+                                                             setEditingFellow(f);
                                                             setShowEdit(true);
                                                         }}
                                                         title="Edit Fellow"
@@ -614,6 +614,13 @@ export default function FellowsPage() {
                                                         </Button>
                                                     </Link>
                                                 </>
+                                            )}
+                                            {session?.user?.role === UserRole.ADMIN && (
+                                                <Link href={`/fellows/${f._id}/documents/upload`}>
+                                                    <Button variant="secondary" size="sm">
+                                                        <FileUp className="h-3 w-3 mr-1" /> Documents
+                                                    </Button>
+                                                </Link>
                                             )}
                                             <Button
                                                 variant="ghost"
