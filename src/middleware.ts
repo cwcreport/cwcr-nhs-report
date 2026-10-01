@@ -31,17 +31,18 @@ export function middleware(req: NextRequest) {
     }
 
     // 3. Admin bypass check (via query parameter or cookie)
+    const bypassSecret = maintenance.bypassSecret;
     const bypassQuery = req.nextUrl.searchParams.get("bypass");
     const bypassCookie = req.cookies.get("maintenance_bypass")?.value;
     const isBypassed =
-      Boolean(maintenance.bypassSecret) &&
-      (bypassQuery === maintenance.bypassSecret || bypassCookie === maintenance.bypassSecret);
+      Boolean(bypassSecret) &&
+      (bypassQuery === bypassSecret || bypassCookie === bypassSecret);
 
-    if (isBypassed) {
+    if (isBypassed && bypassSecret) {
       const response = NextResponse.next();
       // Persist cookie if query param was supplied
-      if (bypassQuery === maintenance.bypassSecret && bypassCookie !== maintenance.bypassSecret) {
-        response.cookies.set("maintenance_bypass", maintenance.bypassSecret, {
+      if (bypassQuery === bypassSecret && bypassCookie !== bypassSecret) {
+        response.cookies.set("maintenance_bypass", bypassSecret, {
           path: "/",
           httpOnly: false,
           sameSite: "lax",
