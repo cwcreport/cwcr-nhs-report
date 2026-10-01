@@ -4,12 +4,101 @@
    Full auth validation happens in API route guards.
    ────────────────────────────────────────── */
 import { NextResponse, type NextRequest } from "next/server";
+import { getMaintenanceConfig } from "@/lib/maintenance";
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const maintenance = getMaintenanceConfig();
 
+  // ─── Maintenance Mode Enforcement ───────────────────
+  if (maintenance.enabled) {
+    // 1. Static and public asset exemptions
+    const isStaticAsset =
+      pathname.startsWith("/_next/") ||
+      pathname === "/favicon.ico" ||
+      pathname === "/logo.png" ||
+      pathname === "/icon.png" ||
+      pathname === "/robots.txt" ||
+      pathname === "/sitemap.xml";
+
+    if (isStaticAsset) {
+      return NextResponse.next();
+    }
+
+    // 2. Allow status API so the 503 page can query if system is back online
+    if (pathname === "/api/maintenance-status") {
+      return NextResponse.next();
+    }
+
+    // 3. Admin bypass check (via query parameter or cookie)
+    const bypassQuery = req.nextUrl.searchParams.get("bypass");
+    const bypassCookie = req.cookies.get("maintenance_bypass")?.value;
+    const isBypassed =
+      Boolean(maintenance.bypassSecret) &&
+      (bypassQuery === maintenance.bypassSecret || bypassCookie === maintenance.bypassSecret);
+
+    if (isBypassed) {
+      const response = NextResponse.next();
+      // Persist cookie if query param was supplied
+      if (bypassQuery === maintenance.bypassSecret && bypassCookie !== maintenance.bypassSecret) {
+        response.cookies.set("maintenance_bypass", maintenance.bypassSecret, {
+          path: "/",
+          httpOnly: false,
+          sameSite: "lax",
+          maxAge: 60 * 60 * 24, // 24 hours
+        });
+      }
+      return response;
+    }
+
+    // 4. API routes: return 503 JSON with Retry-After header
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        {
+          error: "Service Unavailable",
+          message: maintenance.message,
+          maintenance: true,
+          estimatedUntil: maintenance.estimatedUntil ?? null,
+        },
+        {
+          status: 503,
+          headers: {
+            "Retry-After": "300",
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+          },
+        }
+      );
+    }
+
+    // 5. Allow /503 page itself to render
+    if (pathname === "/503") {
+      return NextResponse.next();
+    }
+
+    // 6. Rewrite all other web requests to the 503 page with HTTP 503 status
+    const url = req.nextUrl.clone();
+    url.pathname = "/503";
+    return NextResponse.rewrite(url, {
+      status: 503,
+      headers: {
+        "Retry-After": "300",
+      },
+    });
+  }
+
+  // ─── Normal Application Route Guards ────────────────
   // Public routes — skip auth check
-  const publicPaths = ["/login", "/forgot-password", "/set-password", "/terms", "/privacy-policy", "/api/auth", "/api/seed"];
+  const publicPaths = [
+    "/login",
+    "/forgot-password",
+    "/set-password",
+    "/terms",
+    "/privacy-policy",
+    "/api/auth",
+    "/api/seed",
+    "/503",
+    "/api/maintenance-status",
+  ];
   // The landing page ("/") must stay publicly viewable (exact match only, so
   // it doesn't accidentally allow every route).
   if (pathname === "/" || publicPaths.some((p) => pathname.startsWith(p))) {
@@ -44,6 +133,6 @@ export const config = {
     /*
      * Match all routes except static assets and _next
      */
-    "/((?!_next/static|_next/image|favicon.ico|logo\\.png).*)",
+    "/((?!_next/static|_next/image|favicon.ico|logo\\.png|icon\\.png).*)",
   ],
 };
